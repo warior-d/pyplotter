@@ -14,6 +14,7 @@ from math import atan2, degrees, pi, sin, cos, radians
 from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PyQt5.Qt import QTransform
+from datetime import *
 
 
 def getCoordsFromKML(kmlfile):
@@ -657,15 +658,20 @@ class MainWindow(QMainWindow):
         self.scale.valueChanged.connect(self.updateScale)
 
         self.LCDspeed = QLCDNumber(self)
-        self.LCDspeed.setStyleSheet("QLCDNumber { background-color: white; color: green; }")
+        self.LCDspeed.setStyleSheet("QLCDNumber { background-color: white; color: red; }")
         self.LCDspeed.setGeometry(5, 25, 110, 60)
 
         self.LCDcourse = QLCDNumber(self)
-        self.LCDcourse.setStyleSheet("QLCDNumber { background-color: white; color: green; }")
+        self.LCDcourse.setStyleSheet("QLCDNumber { background-color: white; color: blue; }")
         self.LCDcourse.setGeometry(5, 85, 110, 60)
 
         self.LCDdepth = QLCDNumber(self)
+        self.LCDdepth.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
         self.LCDdepth.setGeometry(5, 145, 110, 60)
+
+        self.LCDtime = QLCDNumber(self)
+        self.LCDtime.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
+        self.LCDtime.setGeometry(5, 205, 110, 60)
 
         self.labelInfo = QLabel(self)
         self.labelInfo.setGeometry(5, 230, 210, 30)
@@ -728,19 +734,29 @@ class MainWindow(QMainWindow):
 
     def parsingDepthData(self, str):
         data = str.split(',')
-        speed = data[3]
+        strDepth = data[3]
+        depth = float(strDepth)
         try:
-            self.LCDspeed.display(speed)
+            self.LCDdepth.display(depth)
         except Exception as e:
             print(e)
 
     def parsingGPSData(self, str):
         data = str.split(',')
+        currentTime = data[1]
+        tim = currentTime.split('.')
+        time = tim[0]
+        timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
+        self.LCDtime.display(timeNorm.strftime('%H:%M'))
+
+        currentDate = data[9]
         course = int(data[8])
         Lat = data[3]
         LatSign = data[4]
         Lon = data[5]
         LonSign = data[6]
+        strSpeed = data[7]
+        speed = float(data[7]) * 1.85
         LatDEC = self.NMEA2decimal(Lat, LatSign)
         LonDEC = self.NMEA2decimal(Lon, LonSign)
         #print(LatDEC, LonDEC)
@@ -749,6 +765,7 @@ class MainWindow(QMainWindow):
                 self.LCDcourse.display(int(course))
             except Exception as e:
                 print(e)
+        self.LCDspeed.display(speed)
         self.myWidget.printNewGPS(LatDEC, LonDEC, int(course))
 
     def NMEA2decimal(self, strNMEA, sign):
