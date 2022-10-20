@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>hata19.jpg</name><color>88ffffff</color><Icon>
+<href>hata19.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.6866916356136</north>
+<south>55.6740311999795</south>
+<east>37.8949248790741</east>
+<west>37.8663378953934</west>
+</LatLonBox></GroundOverlay></kml>
