@@ -11,7 +11,7 @@ from geopy import Point
 from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
-from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice
+from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PyQt5.Qt import QTransform
 from datetime import *
@@ -125,13 +125,14 @@ class Settings():
     COURSE = None
     PAINT_POSx = None
     PAINT_POSy = None
-    BAUD_RATES = ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"]
+    BAUD_RATES = ["9600", "19200", "38400", "57600", "115200"] #["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"]
     BAUD_RATE = None
     COM_PORT_EKHO = None
     GPS_DEPTH_KEY = '$SDDBT'
     GPS_DATA_KEY = '$GPRMC'
     GPS_X = None
     GPS_Y = None
+    KEEP_SHIP = 0
 
     # установка текущего масштаба (1 - 9)
     def setScale(self, scale):
@@ -152,6 +153,7 @@ class Settings():
         self.FILE_NAME = filename
         return self.FILE_NAME
 
+
 class LabelShip(QLabel):
     def __init__(self, parent):
         super().__init__(parent=parent)
@@ -159,6 +161,14 @@ class LabelShip(QLabel):
         self.setScaledContents(True)
         self.pix = QPixmap("icons/lodka_medium.png")
         self.setPixmap(self.pix)
+
+    def getPos(self):
+        dx = self.width() / 2
+        dy = self.height() / 2
+        realPos = QPoint()
+        realPos.setX(int(self.pos().x() + dx))
+        realPos.setY(int(self.pos().y() + dy))
+        return realPos
 
     def moveLike(self, x, y, rotate = 0):
         dx = self.width() / 2
@@ -250,10 +260,15 @@ class LabelGrid(QLabel):
 class Main(QWidget):
     mouse_old_pos = None
     label_old_pos = None
+    # для передвижения вместе с картой при тапе
+    ship_old_pos = None
     old_pos = None
     mashtab = Settings.DEFAULT_MASHTAB
     FILE_NAME = None
     KMLfileName = Settings.KML_FILE_NAME
+    # для расчета движения карты при центровке
+    ship_previous_pos = None
+
 
     def __init__(self):
         super().__init__()
@@ -288,9 +303,19 @@ class Main(QWidget):
         self.labelGrid = LabelGrid(self)
         self.labelGrid.setVisible(False)
 
+        self.movingCentr = False
+
         # Определим РЕАЛЬНОЕ (по координатам) расстояние между точками из KML
         # И отобразим на карте!
         # TODO : возможно, ресайзить нужно backgroung...
+
+
+    def setMovingCenter(self):
+        if self.movingCentr == True:
+            self.movingCentr = False
+        else:
+            self.movingCentr = True
+
 
     # выдает координаты относительно ЦЕНТРА
     # ВНИМАНИЕ! Последовательность переменных играет роль!
@@ -359,6 +384,23 @@ class Main(QWidget):
         pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP  #40m/80px = 0.5m in pixel
         real_dist_in_pixels = real_dist / pixelLenght
         lon1, lat1, lon2, lat2 = float(Settings.CENTR_LON), float(Settings.CENTR_LAT), float(Lon), float(Lat)
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        bearing1 = atan2(cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1), sin(lon2 - lon1) * cos(lat2))
+        bearing = degrees(bearing1)
+        relX = int(Settings.DESCTOP_WIDHT / 2) + (real_dist_in_pixels * cos(bearing1))
+        relY = int(Settings.DESCTOP_HEIGHT / 2) - (real_dist_in_pixels * sin(bearing1))
+        point = (int(relX), int(relY))
+        return point
+
+    def getPointByCoordsCentr(self, LatBase, LonBase, Lat, Lon):
+        point1 = (LatBase, LonBase)
+        point2 = (Lat, Lon)
+        real_dist = geodesic(point1, point2).meters
+        pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP  #40m/80px = 0.5m in pixel
+        real_dist_in_pixels = real_dist / pixelLenght
+        lon1, lat1, lon2, lat2 = float(LonBase), float(LatBase), float(Lon), float(Lat)
         lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
         dlon = lon2 - lon1
         dlat = lat2 - lat1
@@ -473,10 +515,37 @@ class Main(QWidget):
                 Qt.KeepAspectRatio,
                 Qt.FastTransformation))
 
+    def shipToCenter(self, Lat, Lon, rotate = 0):
+        # нужно рассчитать новые координаты центра карты относительно корабля, который в центре,
+        # передвинуть labelShip на смещение корабля
+        currentPositionShip = self.labelShip.getPos()
+        if(self.ship_previous_pos == None):
+            self.ship_previous_pos = currentPositionShip
+        else:
+            delta = self.ship_previous_pos - center.pos()
+            self.mooving(delta, 0)
+        self.labelShip.moveLike(int(Settings.DESCTOP_WIDHT / 2),
+                                int(Settings.DESCTOP_HEIGHT / 2),
+                                int(rotate))
+        center = QPoint()
+        smeshenieCentra = self.getPointByCoordsCentr(Lat, Lon, Settings.CENTR_LAT, Settings.CENTR_LON)
+        smeshX, smeshY = smeshenieCentra
+        center.setX(smeshX)
+        center.setY(smeshY)
+        print(smeshenieCentra, type(smeshenieCentra))
+
+
+
+
     def printNewGPS(self, Lat, Lon, rotate = 0):
-        newMapCorner = self.getPointByCoords(Lat, Lon)
-        Settings.GPS_X, Settings.GPS_Y = newMapCorner
-        self.labelShip.moveLike(int(Settings.GPS_X), int(Settings.GPS_Y), int(rotate))
+        newMapCenter = self.getPointByCoords(Lat, Lon)
+        Settings.GPS_X, Settings.GPS_Y = newMapCenter
+        # и вот тут хитрость - если у нас в настройках слежение за центром -
+        # то корабль в центре, а карта движется
+        if self.movingCentr == True:
+            self.shipToCenter(Lat, Lon, rotate)
+        else:
+            self.labelShip.moveLike(int(Settings.GPS_X), int(Settings.GPS_Y), int(rotate))
         if not self.labelShip.isVisible():
             self.labelShip.setVisible(True)
 
@@ -510,7 +579,8 @@ class Main(QWidget):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.mouse_old_pos = event.pos()  # позиция Мыши
-            self.label_old_pos = self.labelMap.pos()  # позиция Карты
+            self.label_old_pos = self.labelMap.pos() # позиция Карты
+            self.ship_old_pos = self.labelShip.pos() # позиция корабля
 
 
         if event.button() == Qt.RightButton:
@@ -526,11 +596,16 @@ class Main(QWidget):
     def mouseMoveEvent(self, event):
         self.labelGrid.setModyfyed(True)
         self.labelGrid.update()
+
         if not self.mouse_old_pos:
             return
         # разница в передвижении:
         delta = event.pos() - self.mouse_old_pos
+        self.mooving(delta)
         #self.update()
+
+    # TODO: здесь, возможно, потребуется переопределить позиции мыши?...
+    def mooving(self, delta, ship = 1):
         new_pos_label_map = self.label_old_pos + delta
         self.labelMap.move(new_pos_label_map)
 
@@ -542,6 +617,10 @@ class Main(QWidget):
         new_pos_center = self.supposedCentr + delta
         self.newCentr = self.getCoordFromCentrPoint(new_pos_center.x(), new_pos_center.y(),
                                                int(Settings.DESCTOP_WIDHT / 2), int(Settings.DESCTOP_HEIGHT / 2))
+        if(ship == 1):
+            # пересчитаем корабль:
+            new_pos_label_ship = self.ship_old_pos + delta
+            self.labelShip.move(new_pos_label_ship)
 
 class Login(QDialog):
     def __init__(self, parent=None):
@@ -584,6 +663,7 @@ class Login(QDialog):
         else:
             QtWidgets.QMessageBox.warning(
                 self, 'Error', 'Chosen image file have not .kml file around!')
+
 
 class MainWindow(QMainWindow):
 
@@ -677,6 +757,12 @@ class MainWindow(QMainWindow):
         self.labelInfo.setGeometry(5, 230, 210, 30)
         self.serial = QSerialPort(self)
 
+        self.buttonKeep = QPushButton(self)
+        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 60, 60)
+        self.buttonKeep.setIcon(QIcon('icons/tsel.png'))
+        self.buttonKeep.setIconSize(QSize(55, 55))
+        self.buttonKeep.clicked.connect(self.setCenterMoving)
+
         self.strData = ''
         self.dataStart = False
 
@@ -690,6 +776,9 @@ class MainWindow(QMainWindow):
 
     def createGrid(self):
         self.myWidget.createGrid()
+
+    def setCenterMoving(self):
+        self.myWidget.setMovingCenter()
 
     def openMNEAsettingsWindow(self):
         dialog = SettingsDialog(self)
@@ -711,24 +800,28 @@ class MainWindow(QMainWindow):
 
     def onRead(self):
         buffer = ''
-        buffer = self.serial.readLine()
+        try:
+            buffer = self.serial.readLine()
+        except Exception as e:
+            print(e)
         rxs = str(buffer, 'utf-8')
         # если пришло всё в одной строке:
         try:
-            if "$" in rxs:
-                self.strData = ''
-                self.dataStart = True
-            if self.dataStart == True:
-                self.strData = self.strData + rxs.strip()
-            if (self.dataStart == True) and ("\r\n" in rxs):
-                self.dataStart == False
-                if len(self.strData) in range(20, 100):
-                    if Settings.GPS_DEPTH_KEY in self.strData:
-                        self.parsingDepthData(self.strData)
-                    elif Settings.GPS_DATA_KEY in self.strData:
-                        self.parsingGPSData(self.strData)
-                #print(len(str(self.strData)), self.strData)
-                self.strData = ''
+            if buffer != '':
+                if "$" in rxs:
+                    self.strData = ''
+                    self.dataStart = True
+                if self.dataStart == True:
+                    self.strData = self.strData + rxs.strip()
+                if (self.dataStart == True) and ("\r\n" in rxs):
+                    self.dataStart == False
+                    if len(self.strData) in range(20, 100):
+                        if Settings.GPS_DEPTH_KEY in self.strData:
+                            self.parsingDepthData(self.strData)
+                        elif Settings.GPS_DATA_KEY in self.strData:
+                            self.parsingGPSData(self.strData)
+                    #print(len(str(self.strData)), self.strData)
+                    self.strData = ''
         except Exception as e:
             print(e)
 

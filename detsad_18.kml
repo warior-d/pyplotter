@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>detsad_18.jpg</name><color>88ffffff</color><Icon>
+<href>detsad_18.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.6997417903897</north>
+<south>55.6952579027345</south>
+<east>37.8605496883392</east>
+<west>37.84916639328</west>
+</LatLonBox></GroundOverlay></kml>
