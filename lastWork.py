@@ -411,6 +411,23 @@ class Main(QWidget):
         point = (int(relX), int(relY))
         return point
 
+    def getPointByCoordsALLishe(self, LatBase, LonBase, Lat, Lon, Xbase, Ybase):
+        point1 = (LatBase, LonBase)
+        point2 = (Lat, Lon)
+        real_dist = geodesic(point1, point2).meters
+        pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP  #40m/80px = 0.5m in pixel
+        real_dist_in_pixels = real_dist / pixelLenght
+        lon1, lat1, lon2, lat2 = float(LonBase), float(LatBase), float(Lon), float(Lat)
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        bearing1 = atan2(cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1), sin(lon2 - lon1) * cos(lat2))
+        bearing = degrees(bearing1)
+        relX = int(Xbase) + (real_dist_in_pixels * cos(bearing1))
+        relY = int(Ybase) - (real_dist_in_pixels * sin(bearing1))
+        point = (int(relX), int(relY))
+        return point
+
     def getCoord(self, x_ground, y_ground, x_current, y_current):
         # https://github.com/geopy/geopy/blob/master/geopy/distance.py
         grid = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])
@@ -516,23 +533,13 @@ class Main(QWidget):
                 Qt.FastTransformation))
 
     def shipToCenter(self, Lat, Lon, rotate = 0):
+        # а где угол относительно корабля?
+        pos1 = self.getPointByCoordsALLishe(Settings.LAT_NW, Settings.LON_NW, Lat, Lon, self.labelMap.pos().x(), self.labelMap.pos().y())
+        print(pos1)
         # нужно рассчитать новые координаты центра карты относительно корабля, который в центре,
         # передвинуть labelShip на смещение корабля
-        currentPositionShip = self.labelShip.getPos()
-        if(self.ship_previous_pos == None):
-            self.ship_previous_pos = currentPositionShip
-        else:
-            delta = self.ship_previous_pos - center.pos()
-            self.mooving(delta, 0)
-        self.labelShip.moveLike(int(Settings.DESCTOP_WIDHT / 2),
-                                int(Settings.DESCTOP_HEIGHT / 2),
-                                int(rotate))
-        center = QPoint()
-        smeshenieCentra = self.getPointByCoordsCentr(Lat, Lon, Settings.CENTR_LAT, Settings.CENTR_LON)
-        smeshX, smeshY = smeshenieCentra
-        center.setX(smeshX)
-        center.setY(smeshY)
-        print(smeshenieCentra, type(smeshenieCentra))
+
+
 
 
 
