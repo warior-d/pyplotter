@@ -790,10 +790,35 @@ class MainWindow(QMainWindow):
         self.buttonKeep.setIconSize(QSize(40, 40))
         self.buttonKeep.clicked.connect(self.setCenterMoving)
 
+        self.buttonZoomMinus = QPushButton(self)
+        self.buttonZoomMinus.setGeometry(int(Settings.DESCTOP_WIDHT - 40),
+                                        int(Settings.DESCTOP_HEIGHT/2) - 190,
+                                        30,
+                                        30)
+        self.buttonZoomMinus.setText("-")
+        self.buttonZoomMinus.clicked.connect(self.zoomMinus)
+
+        self.buttonZoomPlus = QPushButton(self)
+        self.buttonZoomPlus.setGeometry(int(Settings.DESCTOP_WIDHT - 40),
+                                        int(Settings.DESCTOP_HEIGHT/2) + 160,
+                                        30,
+                                        30)
+        self.buttonZoomPlus.setText("+")
+        self.buttonZoomPlus.clicked.connect(self.zoomPlus)
+
         self.strData = ''
         self.dataStart = False
         self.keepCenter = False
 
+    def zoomMinus(self):
+        current_scale = self.scale.value()
+        if current_scale < Settings.MASHTAB_MAX:
+            self.scale.setValue(current_scale + 1)
+
+    def zoomPlus(self):
+        current_scale = self.scale.value()
+        if current_scale > Settings.MASHTAB_MIN:
+            self.scale.setValue(current_scale - 1)
 
     def updateScale(self):
         current_scale = self.scale.value()
