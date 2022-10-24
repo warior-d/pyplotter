@@ -136,7 +136,7 @@ class LabelShip(QLabel):
         super().__init__(parent=parent)
         # self.move(100, 100)
         self.setScaledContents(True)
-        self.pix = QPixmap("icons/lodka_medium.png")
+        self.pix = QPixmap("icons/lodka_med.png")
         self.setPixmap(self.pix)
 
     def getPos(self):
@@ -523,20 +523,11 @@ class Main(QWidget):
                 Qt.KeepAspectRatio,
                 Qt.FastTransformation))
         if self.movingCentr == True:
-            pass
             # TODO если движется корабль - передвижнуть его...
-            #newMapCorner = self.getPointByCoordsCorner(Lat, Lon)
-            #Settings.GPS_X, Settings.GPS_Y = newMapCorner
-
-
-    def shipKeep(self, position, rotate = 0):
-        try:
-            delta = position - self.centrPoint
-            print("delta ", delta)
-            print("newLabelMap ", self.labelMap.pos() + delta)
-            self.mooving(delta, rotate)
-        except Exception as e:
-            print(e, 'shipKeep ', position)
+            [Lat, Lon] = self.ship_previous_pos
+            newMapCorner = self.getPointByCoordsCorner(Lat, Lon)
+            x, y = newMapCorner
+            self.moveLabelShip(int(x), int(y))
 
 
     # TODO: посмотреть self.ship_previous_pos передается ли всегда?
@@ -651,6 +642,7 @@ class Main(QWidget):
             # пересчитаем корабль:
             new_pos_label_ship = self.ship_old_pos + delta
             self.labelShip.move(new_pos_label_ship)
+
 
 class Login(QDialog):
     def __init__(self, parent=None):
@@ -837,6 +829,7 @@ class MainWindow(QMainWindow):
             elif self.serial.isOpen() == True:
                 self.serial.close()
                 self.comConnectAction.setIcon(QIcon('icons/com_port.png'))
+                self.comConnectAction.setText('Connect...')
         except Exception as e:
             print(e, ' waitingSerial')
 
