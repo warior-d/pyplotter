@@ -759,9 +759,9 @@ class MainWindow(QMainWindow):
         self.labelScale5.setText('5')
         self.labelScale5.setGeometry(int(Settings.DESCTOP_WIDHT - 45), int(Settings.DESCTOP_HEIGHT/2) - 25, 50, 50)
         if Settings.DESCTOP_WIDHT is not None:
-            self.scale.setGeometry(int(Settings.DESCTOP_WIDHT - 30), int(Settings.DESCTOP_HEIGHT/2) - 150, 25, 300)
+            self.scale.setGeometry(int(Settings.DESCTOP_WIDHT - 40), int(Settings.DESCTOP_HEIGHT/2) - 150, 40, 300)
         else:
-            self.scale.setGeometry(1575, 320, 22, 300)
+            self.scale.setGeometry(1575, 320, 30, 300)
         self.scale.valueChanged.connect(self.updateScale)
 
         self.LCDspeed = QLCDNumber(self)
@@ -785,9 +785,9 @@ class MainWindow(QMainWindow):
         self.serial = QSerialPort(self)
 
         self.buttonKeep = QPushButton(self)
-        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 60, 60)
+        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 40, 40)
         self.buttonKeep.setIcon(QIcon('icons/target.png'))
-        self.buttonKeep.setIconSize(QSize(55, 55))
+        self.buttonKeep.setIconSize(QSize(40, 40))
         self.buttonKeep.clicked.connect(self.setCenterMoving)
 
         self.strData = ''
