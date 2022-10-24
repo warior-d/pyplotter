@@ -1,11 +1,19 @@
-from dateutil import parser
-from datetime import *
+class HZ():
+    def __init__(self, parent):
+        self.main = Main
 
-ti = '210906.00'
-tim = ti.split('.')
+    def test(self):
+        self.main.mainTest(self)
 
-time = tim[0]
-timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
-t = str(timeNorm)
 
-print(str(timeNorm.time()))
+class Main:
+    def __init__(self):
+        self.hz = HZ(self)
+
+    def mainTest(self):
+        print("tst\n")
+
+main = Main()
+
+main.mainTest()
+main.hz.test()
