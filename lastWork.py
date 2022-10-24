@@ -398,7 +398,6 @@ class Main(QWidget):
         point = (int(relX), int(relY))
         return point
 
-
     def getPointByCoordsCentr(self, LatBase, LonBase, Lat, Lon):
         point1 = (LatBase, LonBase)
         point2 = (Lat, Lon)
@@ -522,11 +521,13 @@ class Main(QWidget):
                 int(height_new),
                 Qt.KeepAspectRatio,
                 Qt.FastTransformation))
+        # TODO может это красивое приближение и для False?
+        #  Но - может возникать ошибка - self.ship_previous_pos
+        #  может быть не определена при zoom. Так что подумать...
         if self.movingCentr == True:
-            # TODO если движется корабль - передвижнуть его...
             [Lat, Lon] = self.ship_previous_pos
-            newMapCorner = self.getPointByCoordsCorner(Lat, Lon)
-            x, y = newMapCorner
+            shipPos = self.getPointByCoordsCorner(Lat, Lon)
+            x, y = shipPos
             self.moveLabelShip(int(x), int(y))
 
 
