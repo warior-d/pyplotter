@@ -157,6 +157,11 @@ class LabelShip(QLabel):
             self.setPixmap(self.pix.transformed(t))
         self.move(int(x - dx), int(y - dy))
 
+    def rotation(self, angel = 0):
+        if angel:
+            t = QTransform().rotate(angel)
+            self.setPixmap(self.pix.transformed(t))
+
     # def paintEvent(self, event):
     #     ship_height = 10
     #     ship_weight = 20
@@ -277,7 +282,7 @@ class Main(QWidget):
         self.addImage()
 
         # включим отслеживание мышки
-        self.setMouseTracking(True)
+        #self.setMouseTracking(True)
 
         self.labelShip = LabelShip(self)
         self.labelShip.setVisible(False)
@@ -565,6 +570,7 @@ class Main(QWidget):
                 delta = prevPoint - curPoint
                 #print('movingMap: ', Lat, Lon)
                 newPos = self.labelMap.pos() + delta
+                self.labelShip.rotation(int(rotate))
                 #Settings.POS_X, Settings.POS_Y = newPos.x(), newPos.y()
                 self.labelMap.move(newPos)
                 self.ship_previous_pos = [Lat, Lon]
@@ -785,7 +791,7 @@ class MainWindow(QMainWindow):
         self.serial = QSerialPort(self)
 
         self.buttonKeep = QPushButton(self)
-        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 40, 40)
+        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 60, 60)
         self.buttonKeep.setIcon(QIcon('icons/target.png'))
         self.buttonKeep.setIconSize(QSize(40, 40))
         self.buttonKeep.clicked.connect(self.setCenterMoving)

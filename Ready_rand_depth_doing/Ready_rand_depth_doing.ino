@@ -1,9 +1,13 @@
 #include <SoftwareSerial.h>
-
+#include <QMC5883LCompass.h>
 SoftwareSerial ss(4, 5); //4 - белоголубой
-
+QMC5883LCompass compass;
 float GLOBAL_DEPTH;
-
+int COURSE_HMC = 0;
+int TIME_GET_COURSE = 100; //время опроса датчика
+boolean READY_WRITE = false;
+#define DEBUG 0
+unsigned long start_hmc;
 
 /*
   char* myStrings[]={
@@ -49,29 +53,32 @@ float GLOBAL_DEPTH;
   VTG - Скорость и курс относительно земли.
 
 */
-boolean READY_WRITE = false;
 
-#define DEBUG 0
 
 
 void setup() {
   Serial.begin(9600);
   ss.begin(9600);
-  Serial.println("Okay");
+  compass.init();
+  compass.setCalibration(-1462, 1711, -1596, 1578, -1648, 1558);
+  compass.setSmoothing(10,true);
 }
 
 
 
 void loop() {
-
   //Serial.println("$GPGLL,5504.10546,N,03848.80004,E,211606.00,A,A*67");
-  // delay(1000);
+
+  if (millis() - start_hmc >= TIME_GET_COURSE){
+    compass.read();
+    COURSE_HMC = compass.getAzimuth();
+    start_hmc = millis();
+  }
+
 
   if (ss.available() > 0) {
-
     char c = ss.read();
     PrintString(c);
-
   }
 
 }
@@ -126,9 +133,8 @@ void PrintString(char c)
       boolean strt = false;
       char okstr[150] = "";
       int zpt = 0;
-      int math_course = random(0, 355);
       char curs[10];
-      itoa(math_course, curs, DEC);
+      itoa(COURSE_HMC, curs, DEC);
       int len = strlen(Buffer);
       for(int i = 0; i < len; i++){
         int qnt = strlen(okstr);

@@ -1,19 +1,6 @@
-class HZ():
-    def __init__(self, parent):
-        self.main = Main
+str = """
+hello
+my
+deas"""
 
-    def test(self):
-        self.main.mainTest(self)
-
-
-class Main:
-    def __init__(self):
-        self.hz = HZ(self)
-
-    def mainTest(self):
-        print("tst\n")
-
-main = Main()
-
-main.mainTest()
-main.hz.test()
+print(str.replace('\n', "\\n"))
