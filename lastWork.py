@@ -2,7 +2,8 @@
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
-    QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber
+    QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
+    QTextEdit, QTextBrowser
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -112,6 +113,7 @@ class Settings():
     GPS_X = None
     GPS_Y = None
     KEEP_SHIP = 0
+    DEBUG_INFO = True
 
     # установка текущего масштаба (1 - 9)
     def setScale(self, scale):
@@ -726,7 +728,6 @@ class MainWindow(QMainWindow):
         self.exitAction.triggered.connect(qApp.quit)
         self.menuFile.addAction(self.exitAction)
 
-
         # Settings ->
         self.menuSettings = self.mainmenu.addMenu('Settings')
         # Settings -> Add Grid
@@ -736,7 +737,15 @@ class MainWindow(QMainWindow):
         # Settings -> NMEA / COM
         self.menuNMEAAction = QAction(QIcon('icons/nmea.png'), 'NMEA/COM', self)
         self.menuNMEAAction.triggered.connect(self.openMNEAsettingsWindow)
+        self.menuNMEAAction.setShortcut('Ctrl+S')
         self.menuNMEA = self.menuSettings.addAction(self.menuNMEAAction)
+
+        self.toolbar = QToolBar()
+        self.addToolBar(self.toolbar)
+        self.toolbar.addAction(self.menuNMEAAction)
+
+        self.toolbar.addAction(self.comConnectAction)
+        self.toolbar.addAction(self.exitAction)
 
         # self.toolbar = self.addToolBar('Exit')
 
@@ -770,21 +779,22 @@ class MainWindow(QMainWindow):
             self.scale.setGeometry(1575, 320, 30, 300)
         self.scale.valueChanged.connect(self.updateScale)
 
+        self.baseLCDy = 60
         self.LCDspeed = QLCDNumber(self)
         self.LCDspeed.setStyleSheet("QLCDNumber { background-color: white; color: red; }")
-        self.LCDspeed.setGeometry(5, 25, 110, 60)
+        self.LCDspeed.setGeometry(5, self.baseLCDy, 110, 60)
 
         self.LCDcourse = QLCDNumber(self)
         self.LCDcourse.setStyleSheet("QLCDNumber { background-color: white; color: blue; }")
-        self.LCDcourse.setGeometry(5, 85, 110, 60)
+        self.LCDcourse.setGeometry(5, self.baseLCDy + 60, 110, 60)
 
         self.LCDdepth = QLCDNumber(self)
         self.LCDdepth.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
-        self.LCDdepth.setGeometry(5, 145, 110, 60)
+        self.LCDdepth.setGeometry(5, self.baseLCDy + 120, 110, 60)
 
         self.LCDtime = QLCDNumber(self)
         self.LCDtime.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
-        self.LCDtime.setGeometry(5, 205, 110, 60)
+        self.LCDtime.setGeometry(5, self.baseLCDy + 180, 110, 60)
 
         self.labelInfo = QLabel(self)
         self.labelInfo.setGeometry(5, 230, 210, 30)
@@ -812,9 +822,20 @@ class MainWindow(QMainWindow):
         self.buttonZoomPlus.setText("+")
         self.buttonZoomPlus.clicked.connect(self.zoomPlus)
 
+        self.lineEditDebug = QTextBrowser(self)
+        self.lineEditDebug.setGeometry(5, self.baseLCDy + 241, 250, 120)
+        self.lineEditDebug.setVisible(False)
+
         self.strData = ''
         self.dataStart = False
         self.keepCenter = False
+
+    def checkSettings(self):
+        self.lineEditDebug.setText("")
+        if (Settings.DEBUG_INFO == True):
+            self.lineEditDebug.setVisible(True)
+        else:
+            self.lineEditDebug.setVisible(False)
 
     def zoomMinus(self):
         current_scale = self.scale.value()
@@ -889,6 +910,9 @@ class MainWindow(QMainWindow):
                             self.parsingDepthData(self.strData)
                         elif Settings.GPS_DATA_KEY in self.strData:
                             self.parsingGPSData(self.strData)
+                        if self.lineEditDebug.isVisible() == True:
+                            self.lineEditDebug.append(self.strData)
+
                     self.strData = ''
         except Exception as e:
             print(e, ' buffer ', self.strData)
@@ -942,22 +966,37 @@ class MainWindow(QMainWindow):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent):
-        super().__init__(parent=parent)
+    def __init__(self, MainWindow):
+        super().__init__(parent=MainWindow)
+        self.mainWindow = MainWindow
+        self.setWindowTitle("NMEA Settings")
+        #self.windowTitle("NMEA Settings")
         self.setGeometry(0, 0, 420, 400)
+
         self.labelPort = QLabel(self)
         self.labelPort.setText('COM port:')
         self.labelPort.move(5, 20)
         self.comboPorts = QComboBox(self)
         self.comboPorts.move(70, 16)
+
         self.labelBaudRate = QLabel(self)
         self.labelBaudRate.setText('Baud rate:')
         self.labelBaudRate.move(5, 50)
         self.comboBaud = QComboBox(self)
         self.comboBaud.addItems(Settings.BAUD_RATES)
         self.comboBaud.move(70, 46)
-        self.setCenter()
+
+        self.labelDebugData = QLabel(self)
+        self.labelDebugData.setText('Debug GPS:')
+        self.labelDebugData.move(5, 80)
+
+        self.checkDebug = QCheckBox(self)
+        self.checkDebug.move(70, 80)
+        self.checkDebug.setCheckState(False)
+
+
         self.ComPorts = self.setPorts()
+
         self.buttonOK = QPushButton(self)
         self.buttonOK.setText("OK")
         self.buttonOK.move(250, 350)
@@ -966,6 +1005,8 @@ class SettingsDialog(QDialog):
         self.buttonNOT.setText("Cancel")
         self.buttonNOT.move(330, 350)
         self.buttonNOT.clicked.connect(self.returnNOT)
+
+        self.setCenter()
 
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
@@ -984,6 +1025,12 @@ class SettingsDialog(QDialog):
     def returnOK(self):
         Settings.BAUD_RATE = self.comboBaud.currentText()
         Settings.COM_PORT_EKHO = self.comboPorts.currentText()
+        if(self.checkDebug.isChecked() == True):
+            Settings.DEBUG_INFO = True
+        else:
+            Settings.DEBUG_INFO = False
+
+        self.mainWindow.checkSettings()
         self.accept()
 
     def returnNOT(self):
