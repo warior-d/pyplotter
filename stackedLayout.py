@@ -3,7 +3,7 @@
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
-    QTextEdit, QTextBrowser
+    QTextEdit, QTextBrowser, QStackedLayout
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
 from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
-from PyQt5.Qt import QTransform
+from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime
 
@@ -192,22 +192,21 @@ class LabelShip(QLabel):
 # постоянный Paint event
 class LabelGrid(QLabel):
 
-
     # TODO: обрабатывать событие ухода с экрана - через self.label.update()
-    def __init__(self, Main):
-        super().__init__(parent=Main)
-        self.mainuha = Main
+    def __init__(self, parent):
+        super().__init__(parent=parent)
         self.setGeometry(0, 0, Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
         self.IsModyfied = True
         self.moving = QPoint()
-        self.posLabelMap = self.mainuha.getLabelMapPosition()
+        self.posLabelMap = QPoint(Settings.POS_X, Settings.POS_Y)
         self.lastX = self.posLabelMap.x()
         self.lastY = self.posLabelMap.y()
 
     def paintEvent(self, event):
         if self.IsModyfied == True:
             super().paintEvent(event)
-            currentPosition = self.mainuha.getLabelMapPosition()
+            currentPosition = self.posLabelMap
+            print("grid grid", currentPosition, self.posLabelMap, self.lastX)
             #print(currentPosition)
             dx = 0
             dy = 0
@@ -246,6 +245,116 @@ class LabelGrid(QLabel):
     def setMoving(self, delta):
         pass
 
+    def setCurrentMapPosition(self, position):
+        self.posLabelMap = position
+
+
+class MapGrid(QWidget):
+    def __init__(self):
+        super().__init__()
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
+        Settings.DESCTOP_WIDHT = screen_width
+        Settings.DESCTOP_HEIGHT = screen_height
+        self.setGeometry(0, 0, screen_width, screen_height)
+
+        # Объект - Label с наложенной сеткой
+        self.labelGrid = LabelGrid(self)
+        self.labelGrid.setVisible(False)
+
+    def proxyToGridPosition(self, position):
+        self.labelGrid.setCurrentMapPosition(position)
+
+    def move_grid_on(self):
+        self.labelGrid.setModyfyed(True)
+
+    def move_grid_off(self):
+        self.labelGrid.setModyfyed(False)
+
+    def zoom_grid(self):
+        self.labelGrid.update()
+        self.labelGrid.setModyfyed(True)
+
+    def createGrid(self):
+        #Settings.NEED_GRID
+        if self.labelGrid.isVisible() == False:
+            self.labelGrid.setVisible(True)
+            self.labelGrid.update()
+        else:
+            self.labelGrid.setVisible(False)
+            self.labelGrid.update()
+
+    def labelGridUpdate(self):
+        self.labelGrid.update()
+
+
+class LabelMapShip(QWidget):
+    def __init__(self):
+        super().__init__()
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
+        Settings.DESCTOP_WIDHT = screen_width
+        Settings.DESCTOP_HEIGHT = screen_height
+        self.setGeometry(0, 0, screen_width, screen_height)
+        self.labelShip = LabelShip(self)
+        self.labelShip.setVisible(False)
+
+    def moveLabelShip(self, x, y, rotate = 0):
+        if not self.labelShip.isVisible():
+            self.labelShip.setVisible(True)
+
+        self.labelShip.moveLike(x, y, rotate)
+
+
+    # TODO: посмотреть self.ship_previous_pos передается ли всегда?
+    def newGPScoordinates(self, Lat, Lon, rotate = 0):
+
+        # сначала сделаем корабль видимым, безотносительно...
+        if not self.labelShip.isVisible():
+            self.labelShip.setVisible(True)
+
+        # если двигаем КОРАБЛЬ, а не карту
+        if self.movingCentr == False:
+
+            # TODO: точка относительно УГЛА!!! НЕ используй
+            #  getPointByCoords, перепиши другую!!!
+            # self.getPointByCoordsCorner(Lat, Lon)
+            # TODO: дерьмо в том, что при отключении "слежки" центр-то старый,
+            #  и будет скачок координат. Ну или И центр менять при движении...
+
+            newMapCorner = self.getPointByCoordsCorner(Lat, Lon)
+            Settings.GPS_X, Settings.GPS_Y = newMapCorner
+            self.moveLabelShip(int(Settings.GPS_X), int(Settings.GPS_Y), int(rotate))
+        elif self.movingCentr == True:
+            #с rotate придумать что-нить!
+            if not self.ship_previous_pos:
+                self.ship_previous_pos = [Lat, Lon]
+                #print("first data ", Lat, Lon)
+            else:
+                prevPointX, prevPointY = self.getPointByCoordsCorner(self.ship_previous_pos[0], self.ship_previous_pos[1])
+                curPointX, curPointY = self.getPointByCoordsCorner(Lat, Lon)
+                prevPoint = QPoint(prevPointX, prevPointY)
+                curPoint = QPoint(curPointX, curPointY)
+                delta = prevPoint - curPoint
+                #print('movingMap: ', Lat, Lon)
+                newPos = self.labelMap.pos() + delta
+                self.labelShip.rotation(int(rotate))
+                Settings.POS_X, Settings.POS_Y = newPos.x(), newPos.y()
+                self.labelMap.move(newPos)
+                self.ship_previous_pos = [Lat, Lon]
+
+
+
+class TestMain(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.labelMap1 = QLabel(self)
+        self.labelMap1.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.labelMap1.move(500, 500)
+        self.labelMap1.setText("121323123123123123213123")
+
 
 class Main(QWidget):
     mouse_old_pos = None
@@ -266,6 +375,8 @@ class Main(QWidget):
         screen_height = QApplication.instance().desktop().availableGeometry().height()
         Settings.DESCTOP_WIDHT = screen_width
         Settings.DESCTOP_HEIGHT = screen_height
+        #тут хранятся ТЕКУЩИЕ центральные координаты
+        self.newCentr = ''
         self.setGeometry(0, 0, screen_width, screen_height)
         self.pixmapMap = QPixmap(Settings.FILE_NAME)
         # в самом начале установим координаты центральной точки в 0 - 0
@@ -275,8 +386,6 @@ class Main(QWidget):
         self.posY = None
         self.supposedCentr = QPoint()
         self.doCentrPixels()
-        #тут хранятся ТЕКУЩИЕ центральные координаты
-        self.newCentr = ''
         # Получим список координат
         self.labelMap = QLabel(self)
         self.labelMap.move(350, 210)
@@ -289,11 +398,6 @@ class Main(QWidget):
         self.labelShip = LabelShip(self)
         self.labelShip.setVisible(False)
 
-
-        # Объект - Label с наложенной сеткой
-        self.labelGrid = LabelGrid(self)
-        self.labelGrid.setVisible(False)
-
         self.movingCentr = False
         self.centrPoint = QPoint()
         self.centrPoint.setX(int(Settings.DESCTOP_WIDHT / 2))
@@ -303,6 +407,8 @@ class Main(QWidget):
         # И отобразим на карте!
         # TODO : возможно, ресайзить нужно backgroung...
 
+    def mousePressEvent(self, event):
+        print("position global widget = ", event.globalPos())
 
     def setMovingCenter(self):
         if self.movingCentr == True:
@@ -311,6 +417,11 @@ class Main(QWidget):
         else:
             self.movingCentr = True
 
+    def makeMovingCenterFalse(self):
+        self.movingCentr = False
+
+    def setPrevShipPodNone(self):
+        self.ship_previous_pos = []
 
     # выдает координаты относительно ЦЕНТРА
     # ВНИМАНИЕ! Последовательность переменных играет роль!
@@ -356,21 +467,8 @@ class Main(QWidget):
         self.supposedCentr.setX(int(Settings.DESCTOP_WIDHT / 2))
         self.supposedCentr.setY(int(Settings.DESCTOP_HEIGHT / 2))
 
-    # получить точку X, Y в текущем масштабе по геогр. координатам
-    def getPointByCoordsWide(self, LatBase, LonBase, Lat, Lon, Xbase, Ybase):
-        point1 = (LatBase, LonBase)
-        point2 = (Lat, Lon)
-        real_dist = geodesic(point1, point2).meters
-        pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP  #40m/80px = 0.5m in pixel
-        real_dist_in_pixels = real_dist / pixelLenght
-        lon1, lat1, lon2, lat2 = float(LonBase), float(LatBase), float(Lon), float(Lat)
-        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-        bearing1 = atan2(cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1), sin(lon2 - lon1) * cos(lat2))
-        bearing = degrees(bearing1)
-        relX = Xbase + (real_dist_in_pixels * cos(bearing1))
-        relY = Ybase - (real_dist_in_pixels * sin(bearing1))
-        point = (int(relX), int(relY))
-        return point
+    def getNewCenter(self):
+        return self.newCentr
 
     def getPointByCoords(self, Lat, Lon):
         point1 = (Settings.CENTR_LAT, Settings.CENTR_LON)
@@ -404,23 +502,6 @@ class Main(QWidget):
         bearing = degrees(bearing1)
         relX = self.labelMap.pos().x() + (real_dist_in_pixels * cos(bearing1))
         relY = self.labelMap.pos().y() - (real_dist_in_pixels * sin(bearing1))
-        point = (int(relX), int(relY))
-        return point
-
-    def getPointByCoordsCentr(self, LatBase, LonBase, Lat, Lon):
-        point1 = (LatBase, LonBase)
-        point2 = (Lat, Lon)
-        real_dist = geodesic(point1, point2).meters
-        pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP  #40m/80px = 0.5m in pixel
-        real_dist_in_pixels = real_dist / pixelLenght
-        lon1, lat1, lon2, lat2 = float(LonBase), float(LatBase), float(Lon), float(Lat)
-        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        bearing1 = atan2(cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1), sin(lon2 - lon1) * cos(lat2))
-        bearing = degrees(bearing1)
-        relX = int(Settings.DESCTOP_WIDHT / 2) + (real_dist_in_pixels * cos(bearing1))
-        relY = int(Settings.DESCTOP_HEIGHT / 2) - (real_dist_in_pixels * sin(bearing1))
         point = (int(relX), int(relY))
         return point
 
@@ -490,8 +571,7 @@ class Main(QWidget):
     # увеличение / уменьшение картинки
     # TODO: возможно, добавить и смещение - отдельной функцией.
     def zoomMap(self):
-        self.labelGrid.update()
-        self.labelGrid.setModyfyed(True)
+
         # все, что ту делается - берем изначальный image, и сжимаем (растягиваем) его
         # то есть, из исходного (как есть) делаем сразу готовый.
         coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
@@ -511,8 +591,9 @@ class Main(QWidget):
         x1, y1 = self.labelMap.pos().x(), self.labelMap.pos().y()
         x2, y2 = x1 + self.pixmapMap.width(), y1 + self.pixmapMap.height()
 
-        # Settings.POS_X = self.labelMap.pos().x()
-        # Settings.POS_Y = self.labelMap.pos().y()
+        # Нужно для grid
+        Settings.POS_X = self.labelMap.pos().x()
+        Settings.POS_Y = self.labelMap.pos().y()
 
         pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP
         lengh_pixels = (((y2 - y1) ** (2)) + ((x2 - x1) ** (2))) ** (0.5)
@@ -538,7 +619,6 @@ class Main(QWidget):
             shipPos = self.getPointByCoordsCorner(Lat, Lon)
             x, y = shipPos
             self.moveLabelShip(int(x), int(y))
-
 
     # TODO: посмотреть self.ship_previous_pos передается ли всегда?
     def newGPScoordinates(self, Lat, Lon, rotate = 0):
@@ -584,57 +664,8 @@ class Main(QWidget):
         Settings.CURRENT_MASHTAB = scale
         self.zoomMap()
 
-    def createGrid(self):
-        #Settings.NEED_GRID
-        if self.labelGrid.isVisible() == False:
-            self.labelGrid.setVisible(True)
-            self.labelGrid.update()
-        else:
-            self.labelGrid.setVisible(False)
-            self.labelGrid.update()
-
-    # def updateSliderScale(self):
-    #     Settings.CURRENT_MASHTAB = self.scale.value()
-    #     scale_grid = Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]
-    #     self.rescaleMap()
-
-
-    def mouseDoubleClickEvent(self, event):
-
-        # x_ground, y_ground, x_current, y_current
-        point = self.getCoord(self.labelMap.pos().x(), self.labelMap.pos().y(),
-                              event.pos().x(), event.pos().y())
-        curLat1, curLon1 = point.split(', ')
-        print('click! 1:', " .2: ", curLat1, curLon1)
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.mouse_old_pos = event.pos()  # позиция Мыши
-            self.label_old_pos = self.labelMap.pos() # позиция Карты
-            self.ship_old_pos = self.labelShip.pos() # позиция корабля
-        if event.button() == Qt.RightButton:
-            print('center is: ', Settings.CENTR_LAT, ',', Settings.CENTR_LON, " set: ", Settings.BAUD_RATE, ' ', Settings.COM_PORT_EKHO)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.mouse_old_pos = None
-            self.doCentrPixels()
-            if self.newCentr != '':
-                Settings.CENTR_LAT, Settings.CENTR_LON = self.newCentr.split(', ')
-
-    def mouseMoveEvent(self, event):
-        # как только руками дернули - все, ушла настройка...
-        self.movingCentr = False
-        self.ship_previous_pos = []
-        self.labelGrid.setModyfyed(True)
-        self.labelGrid.update()
-
-        if not self.mouse_old_pos:
-            return
-        # разница в передвижении:
-        delta = event.pos() - self.mouse_old_pos
-        self.mooving(delta)
-        #self.update()
+    def setLabelOldPos(self, pos):
+        self.label_old_pos = pos
 
     # TODO: здесь, возможно, потребуется переопределить позиции мыши?...
     def mooving(self, delta, ship = 1):
@@ -642,17 +673,24 @@ class Main(QWidget):
         self.labelMap.move(new_pos_label_map)
 
         # после движения мышкой - обновим координаты угла
-        # Settings.POS_X = new_pos_label_map.x()
-        # Settings.POS_Y = new_pos_label_map.y()
+        Settings.POS_X = new_pos_label_map.x()
+        Settings.POS_Y = new_pos_label_map.y()
 
         #пересчитаем координаты нового центра:
         new_pos_center = self.supposedCentr + delta
         self.newCentr = self.getCoordFromCentrPoint(new_pos_center.x(), new_pos_center.y(),
                                                int(Settings.DESCTOP_WIDHT / 2), int(Settings.DESCTOP_HEIGHT / 2))
         if(ship == 1):
-            # пересчитаем корабль:
-            new_pos_label_ship = self.ship_old_pos + delta
-            self.labelShip.move(new_pos_label_ship)
+            pass
+            # TODO ***** пересчитаем корабль:
+            #new_pos_label_ship = self.ship_old_pos + delta
+            #self.labelShip.move(new_pos_label_ship)
+
+    def getCurrentLabelMapPos(self):
+        return self.labelMap.pos()
+
+    def getCurrentLabelShipPos(self):
+        return self.labelShip.pos()
 
 
 class Login(QDialog):
@@ -663,7 +701,7 @@ class Login(QDialog):
         Settings.DESCTOP_HEIGHT = screen_height
         print(Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
         super(Login, self).__init__(parent)
-        self.buttonLogin = QPushButton('Login', self)
+        self.buttonLogin = QPushButton('Get Map Image', self)
 
         self.buttonLogin.clicked.connect(self.handleLogin)
         layout = QHBoxLayout(self)
@@ -700,9 +738,13 @@ class Login(QDialog):
 
 class MainWindow(QMainWindow):
 
+    mouse_old_pos = None
+    label_old_pos = None
+    # для передвижения вместе с картой при тапе
+    ship_old_pos = None
+
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.myWidget = Main()
 
         self.mainmenu = self.menuBar()
         # File ->
@@ -748,8 +790,31 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(self.exitAction)
 
         # self.toolbar = self.addToolBar('Exit')
+        self.testWidget = TestMain()
+        self.myWidget = Main()
+        self.gridWidget = MapGrid()
+        self.shipWidget = LabelMapShip()
 
-        self.setCentralWidget(self.myWidget)
+        self.titleBarHeight = self.style().pixelMetric(
+            QStyle.PM_TitleBarHeight,
+            QStyleOptionTitleBar(),
+            self
+        )
+
+        layout = QStackedLayout()
+        layout.setStackingMode(QStackedLayout.StackAll)
+
+        layout.addWidget(self.myWidget)
+        #layout.addWidget(self.testWidget)
+        layout.addWidget(self.shipWidget)
+        layout.addWidget(self.gridWidget)
+
+
+
+        widget = QWidget()
+        widget.setAttribute(Qt.WA_TranslucentBackground, True)
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
 
         self.statusBar = self.statusBar()
         strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
@@ -829,6 +894,47 @@ class MainWindow(QMainWindow):
         self.strData = ''
         self.dataStart = False
         self.keepCenter = False
+        print("MWMWMWWM2", self.size())
+        print(self.frameGeometry().width(), self.frameGeometry().height())
+
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            print("position global MW = ", event.globalPos())
+            print("position otnos MW = ", event.pos())
+            self.mouse_old_pos = event.pos()
+            self.myWidget.setLabelOldPos(self.myWidget.getCurrentLabelMapPos())
+            self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
+            print(self.label_old_pos, self.ship_old_pos)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.mouse_old_pos = None
+            self.myWidget.doCentrPixels()
+            if self.myWidget.getNewCenter() != '':
+                Settings.CENTR_LAT, Settings.CENTR_LON = self.myWidget.getNewCenter().split(', ')
+
+    def mouseMoveEvent(self, event):
+        self.myWidget.makeMovingCenterFalse()
+        self.myWidget.setPrevShipPodNone()
+
+        self.gridWidget.move_grid_on()
+        self.gridWidget.labelGridUpdate()
+        self.gridWidget.proxyToGridPosition(self.myWidget.getLabelMapPosition())
+
+        if not self.mouse_old_pos:
+            return
+        # разница в передвижении:
+        delta = event.pos() - self.mouse_old_pos
+        self.myWidget.mooving(delta)
+
+    def mouseDoubleClickEvent(self, event):
+        print("MOUSE MW:", event.pos())
+        pos = self.myWidget.getCurrentLabelMapPos()
+        point = self.myWidget.getCoord(pos.x(), pos.y(),
+                             event.pos().x(), event.pos().y() - self.titleBarHeight*2)
+        curLat1, curLon1 = point.split(', ')
+        print('click! 1:', " .2: ", curLat1, curLon1)
 
     def checkSettings(self):
         self.lineEditDebug.setText("")
@@ -849,12 +955,14 @@ class MainWindow(QMainWindow):
 
     def updateScale(self):
         current_scale = self.scale.value()
+        self.gridWidget.zoom_grid()
         self.myWidget.updateScale(current_scale)
         strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
         self.statusBar.showMessage(strStatus)
 
+
     def createGrid(self):
-        self.myWidget.createGrid()
+        self.gridWidget.createGrid()
 
     def setCenterMoving(self):
         if self.keepCenter == False:
@@ -961,7 +1069,10 @@ class MainWindow(QMainWindow):
                     if course in range(0, 360):
                         self.LCDcourse.display(int(course))
                     self.LCDspeed.display(speed)
-                    self.myWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
+                    ship_coords = self.myWidget.getPointByCoordsCorner(LatDEC, LonDEC)
+                    new_x, new_y = ship_coords
+                    self.shipWidget.moveLabelShip(new_x, new_y)
+                    #self.shipWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
                 else:
                     now = QTime.currentTime()
                     print(now.toString(), " GPS coordinates are not valid yet. GPS sends", data[2], "value... Waiting...")
@@ -988,7 +1099,6 @@ class SettingsDialog(QDialog):
         super().__init__(parent=MainWindow)
         self.mainWindow = MainWindow
         self.setWindowTitle("NMEA Settings")
-        #self.windowTitle("NMEA Settings")
         self.setGeometry(0, 0, 420, 400)
 
         self.labelPort = QLabel(self)
