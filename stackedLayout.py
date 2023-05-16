@@ -3,7 +3,7 @@
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
-    QTextEdit, QTextBrowser, QStackedLayout
+    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -14,11 +14,23 @@ from geopy import Point
 from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
-from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize
+from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime
+
+############
+import pandas as pd
+import numpy as np
+from numpy import arange
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+from matplotlib import rcParams, colors
+from math import cos, radians, ceil
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from matplotlib.figure import Figure
+#############
 
 def getCoordsFromKML(kmlfile):
     tree = ET.parse(kmlfile)
@@ -72,14 +84,17 @@ def distanceInPixels(x1, y1, x2, y2):
 class Settings():
     GRID_STEP = 80
     NEED_GRID = 0
-    NEED_FISHING_CIRCLE = 1
+    NEED_FISHING_CIRCLE = False
+    NEED_RADIUS_VECTOR = False
+    NEED_RADIUS_TEXT = True
     FISHING_SIRCLE_RADIUS = 60
     FISHING_SIRCLE_QNT = 2
+    CIRCLE_COLOR = None
     MASHTAB_MIN = 1
     MASHTAB_MAX = 9
     FILE_NAME = None  # "OKA_19_160.jpg"
     KML_FILE_NAME = None
-    FILE_DEPTH_NAME = "djer.csv"  # "OKA_19_160.jpg"
+    FILE_DEPTH_NAME = None  # "djer.csv"
     IMAGE_WIDTH = None
     IMAGE_HEIGHT = None
     LAT_NW = None
@@ -113,7 +128,7 @@ class Settings():
     GPS_X = None
     GPS_Y = None
     KEEP_SHIP = 0
-    DEBUG_INFO = True
+    DEBUG_INFO = False
 
     # установка текущего масштаба (1 - 9)
     def setScale(self, scale):
@@ -163,31 +178,6 @@ class LabelShip(QLabel):
         if angel:
             t = QTransform().rotate(angel)
             self.setPixmap(self.pix.transformed(t))
-
-    # def paintEvent(self, event):
-    #     ship_height = 10
-    #     ship_weight = 20
-    #     x1, y1 = Settings.POS_SHIP_X - int(ship_weight / 2), Settings.POS_SHIP_Y - int(ship_height / 2)
-    #     x2, y2 = Settings.POS_SHIP_X - int(ship_weight / 2), Settings.POS_SHIP_Y + int(ship_height / 2)
-    #     x3, y3 = Settings.POS_SHIP_X + int(ship_weight / 2), Settings.POS_SHIP_Y
-    #     pixmap = QPixmap()
-    #     painter = QPainter(pixmap)
-    #     painter.begin(self)
-    #     pen = QPen(Qt.GlobalColor.green, 2, Qt.PenStyle.SolidLine)
-    #     pen.setCapStyle(Qt.PenCapStyle.MPenCapStyle)
-    #     painter.setPen(pen)
-    #     painter.drawLine(x1, y1, x2, y2)
-    #     painter.drawLine(x2, y2, x3, y3)
-    #     painter.drawLine(x3, y3, x1, y1)
-    #     if Settings.NEED_FISHING_CIRCLE == 1:
-    #         centr = QPoint()
-    #         centr.setX(Settings.POS_SHIP_X)
-    #         centr.setY(Settings.POS_SHIP_Y)
-    #         rad = (Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / int(
-    #             Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])
-    #         painter.drawEllipse(centr, rad, rad)
-    #     painter.end()
-    #     self.setPixmap(pixmap)
 
 # постоянный Paint event
 class LabelGrid(QLabel):
@@ -298,13 +288,20 @@ class LabelMapShip(QWidget):
         self.setGeometry(0, 0, screen_width, screen_height)
         self.labelShip = LabelShip(self)
         self.labelShip.setVisible(False)
+        self.old_pos = None
+
+    def setShipOldPos(self):
+        self.old_pos = self.labelShip.pos()
 
     def moveLabelShip(self, x, y, rotate = 0):
         if not self.labelShip.isVisible():
             self.labelShip.setVisible(True)
-
         self.labelShip.moveLike(x, y, rotate)
 
+    def mooving(self, delta):
+        if self.labelShip.isVisible():
+            new_pos_label_ship = self.old_pos + delta
+            self.labelShip.move(new_pos_label_ship)
 
     # TODO: посмотреть self.ship_previous_pos передается ли всегда?
     def newGPScoordinates(self, Lat, Lon, rotate = 0):
@@ -344,16 +341,134 @@ class LabelMapShip(QWidget):
                 self.ship_previous_pos = [Lat, Lon]
 
 
-
-class TestMain(QWidget):
+class GridWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setWindowFlags(Qt.FramelessWindowHint)
-        self.labelMap1 = QLabel(self)
-        self.labelMap1.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.labelMap1.move(500, 500)
-        self.labelMap1.setText("121323123123123123213123")
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
+        Settings.DESCTOP_WIDHT = screen_width
+        Settings.DESCTOP_HEIGHT = screen_height
+        self.setGeometry(0, 0, screen_width, screen_height)
+        self.IsModyfied = True
+        self.posLabelMap = QPoint(Settings.POS_X, Settings.POS_Y)
+        self.lastX = self.posLabelMap.x()
+        self.lastY = self.posLabelMap.y()
+        self.mPixmap = QPixmap()
+        self.setVisible(False)
+
+    def paintEvent(self, event):
+        if self.IsModyfied == True:
+            pixmap = QPixmap(self.size())
+            pixmap.fill(QColor(0, 0, 0, 0))
+            currentPosition = self.posLabelMap
+            dx = 0
+            dy = 0
+            painter = QPainter(pixmap)
+            if (self.lastX != currentPosition.x()) or (self.lastY != currentPosition.y()):
+                dx = self.lastX - currentPosition.x()
+                dy = self.lastY - currentPosition.y()
+            x = int(Settings.DESCTOP_WIDHT / 2) - dx
+            y = int(Settings.DESCTOP_HEIGHT / 2) - dy
+            qntX = int(Settings.DESCTOP_WIDHT / Settings.GRID_STEP)
+            qntY = int(Settings.DESCTOP_HEIGHT / Settings.GRID_STEP)
+            # TODO: теперь сюда нужно посчитать смещение, прибавить по X и Y!
+            # докрутить!
+            for i in range(int(Settings.DESCTOP_WIDHT / qntX), Settings.DESCTOP_WIDHT + abs(dx), Settings.GRID_STEP):
+                painter.drawLine(x, 0, x, Settings.DESCTOP_HEIGHT)
+                painter.drawLine(x + i, 0, x + i, Settings.DESCTOP_HEIGHT)
+                painter.drawLine(x - i, 0, x - i, Settings.DESCTOP_HEIGHT)
+            for i in range(int(Settings.DESCTOP_HEIGHT / qntY), Settings.DESCTOP_HEIGHT + abs(dy), Settings.GRID_STEP):
+                painter.drawLine(0, y, Settings.DESCTOP_WIDHT, y)
+                painter.drawLine(0, y + i, Settings.DESCTOP_WIDHT, y + i)
+                painter.drawLine(0, y - i, Settings.DESCTOP_WIDHT, y - i)
+            self.mPixmap = pixmap
+            self.IsModyfied = False
+
+        qp = QPainter(self)
+        qp.drawPixmap(0, 0, self.mPixmap)
+
+    def setCurrentMapPosition(self, position):
+        self.posLabelMap = position
+
+    def setModyfyed(self):
+        self.IsModyfied = True
+
+    def zoom_grid(self):
+        self.update()
+        self.setModyfyed()
+
+    def createGrid(self):
+        #Settings.NEED_GRID
+        if self.isVisible() == False:
+            self.setVisible(True)
+            self.update()
+        else:
+            self.setVisible(False)
+            self.update()
+
+# TODO - visible завязать еще с ship
+class Circles(QWidget):
+    def __init__(self):
+        super().__init__()
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
+        self.setGeometry(0, 0, screen_width, screen_height)
+        self.shipPosition = QPoint()
+        self.shipPosition.setX(Settings.POS_SHIP_X)
+        self.shipPosition.setY(Settings.POS_SHIP_Y)
+        self.setVisible(False)
+        self.course = 0
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        if Settings.CIRCLE_COLOR is not None:
+            color_pen = QColor()
+            color_pen.setNamedColor(Settings.CIRCLE_COLOR)
+            pen = QPen(color_pen, 2, Qt.PenStyle.SolidLine)
+        else:
+            pen = QPen(Qt.GlobalColor.green, 2, Qt.PenStyle.SolidLine)
+        pen.setCapStyle(Qt.PenCapStyle.MPenCapStyle)
+        painter.setPen(pen)
+        painter.setRenderHint(QPainter.Antialiasing)
+        for qnt in range(1, Settings.FISHING_SIRCLE_QNT + 1):
+            rad = qnt * ((Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / \
+                  int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])) / Settings.FISHING_SIRCLE_QNT
+            painter.drawEllipse(self.shipPosition, rad, rad)
+            if Settings.NEED_RADIUS_TEXT:
+                realRadius = Settings.FISHING_SIRCLE_RADIUS / (Settings.FISHING_SIRCLE_QNT + 1 - qnt)
+                textPos = QPointF()
+                text = str(round(realRadius, 1)) + ' m'
+                textPos.setX(self.shipPosition.x() - len(text))
+                textPos.setY(self.shipPosition.y()  - rad - 2)
+                painter.drawText(textPos, text)
+
+        if Settings.NEED_RADIUS_VECTOR:
+            max_rad = (Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / int(
+                     Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])
+            radiansCourse = radians(self.course)
+            degresCource = degrees(radiansCourse) + 90
+            rightCourse = radians(degresCource)
+
+            radius_point_x = self.shipPosition.x() - max_rad*cos(rightCourse)
+            radius_point_y = self.shipPosition.y() - max_rad*sin(rightCourse)
+            point_1 = QPointF(self.shipPosition.x(), self.shipPosition.y())
+            point_2 = QPointF(radius_point_x, radius_point_y)
+            painter.drawLine(point_1, point_2)
+
+
+    def setShipPosition(self, x, y, rotation = 0):
+        self.shipPosition.setX(x)
+        self.shipPosition.setY(y)
+        self.course = rotation
+        self.update()
+
+    def checkVisible(self):
+        if Settings.NEED_FISHING_CIRCLE == False:
+            self.setVisible(False)
+            self.update()
+        else:
+            self.setVisible(True)
+            self.update()
 
 
 class Main(QWidget):
@@ -668,7 +783,7 @@ class Main(QWidget):
         self.label_old_pos = pos
 
     # TODO: здесь, возможно, потребуется переопределить позиции мыши?...
-    def mooving(self, delta, ship = 1):
+    def mooving(self, delta):
         new_pos_label_map = self.label_old_pos + delta
         self.labelMap.move(new_pos_label_map)
 
@@ -680,11 +795,6 @@ class Main(QWidget):
         new_pos_center = self.supposedCentr + delta
         self.newCentr = self.getCoordFromCentrPoint(new_pos_center.x(), new_pos_center.y(),
                                                int(Settings.DESCTOP_WIDHT / 2), int(Settings.DESCTOP_HEIGHT / 2))
-        if(ship == 1):
-            pass
-            # TODO ***** пересчитаем корабль:
-            #new_pos_label_ship = self.ship_old_pos + delta
-            #self.labelShip.move(new_pos_label_ship)
 
     def getCurrentLabelMapPos(self):
         return self.labelMap.pos()
@@ -742,10 +852,12 @@ class MainWindow(QMainWindow):
     label_old_pos = None
     # для передвижения вместе с картой при тапе
     ship_old_pos = None
-
+    coordsNW = None
+    coordsNE = None
+    coordsSW = None
+    coordsSE = None
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-
         self.mainmenu = self.menuBar()
         # File ->
         self.menuFile = self.mainmenu.addMenu('File')
@@ -782,6 +894,12 @@ class MainWindow(QMainWindow):
         self.menuNMEAAction.setShortcut('Ctrl+S')
         self.menuNMEA = self.menuSettings.addAction(self.menuNMEAAction)
 
+        # Settings -> MAP
+        self.menuMAPAction = QAction(QIcon('icons/map_icon.png'), 'Map', self)
+        self.menuMAPAction.triggered.connect(self.openMAPsettingsWindow)
+        self.menuMAPAction.setShortcut('Ctrl+M')
+        self.menuMAP = self.menuSettings.addAction(self.menuMAPAction)
+
         self.toolbar = QToolBar()
         self.addToolBar(self.toolbar)
         self.toolbar.addAction(self.menuNMEAAction)
@@ -790,10 +908,6 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(self.exitAction)
 
         # self.toolbar = self.addToolBar('Exit')
-        self.testWidget = TestMain()
-        self.myWidget = Main()
-        self.gridWidget = MapGrid()
-        self.shipWidget = LabelMapShip()
 
         self.titleBarHeight = self.style().pixelMetric(
             QStyle.PM_TitleBarHeight,
@@ -801,24 +915,43 @@ class MainWindow(QMainWindow):
             self
         )
 
+        self.myWidget = Main()
+        self.gridWidget = MapGrid()
+        self.shipWidget = LabelMapShip()
+        self.gridW = GridWidget()
+        self.circles = Circles()
+
+        #####
+        if Settings.FILE_DEPTH_NAME is not None:
+            self.figure = plt.figure()
+            self.figure.set_alpha(0)
+            self.figure.patch.set_facecolor("None")
+            self.canvas = FigureCanvas(self.figure)
+            self.canvas.setStyleSheet("background-color:transparent;")
+            if self.coordsNW is not None:
+                self.plot()
+        #####
+
         layout = QStackedLayout()
         layout.setStackingMode(QStackedLayout.StackAll)
 
         layout.addWidget(self.myWidget)
-        #layout.addWidget(self.testWidget)
+        if Settings.FILE_DEPTH_NAME is not None:
+            layout.addWidget(self.canvas)
+        layout.addWidget(self.gridW)
         layout.addWidget(self.shipWidget)
-        layout.addWidget(self.gridWidget)
-
-
+        layout.addWidget(self.circles)
 
         widget = QWidget()
         widget.setAttribute(Qt.WA_TranslucentBackground, True)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+        '''
         self.statusBar = self.statusBar()
         strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
         self.statusBar.showMessage(strStatus)
+        '''
 
         self.scale = QSlider(self)
         self.scale.invertedControls()
@@ -894,18 +1027,82 @@ class MainWindow(QMainWindow):
         self.strData = ''
         self.dataStart = False
         self.keepCenter = False
-        print("MWMWMWWM2", self.size())
         print(self.frameGeometry().width(), self.frameGeometry().height())
+
+
+    def plot(self):
+        if Settings.FILE_DEPTH_NAME is not None:
+            self.figure.clear()
+            contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
+            contour_data.head()
+            maxDepth = ceil(contour_data['z'].max())
+            Z = contour_data.pivot_table(index='x', columns='y', values='z').T.values
+            X_unique = np.sort(contour_data.x.unique())
+            Y_unique = np.sort(contour_data.y.unique())
+            X, Y = np.meshgrid(X_unique, Y_unique)
+            # Initialize plot objects
+            rcParams['toolbar'] = 'None'
+            # rcParams['figure.figsize'] = 20, 10 # sets plot size
+            ax = self.figure.add_subplot(111)
+
+            # Цветовая карта
+            colors = ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
+                      "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc",
+                      "#000099"]
+            cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
+            cmap = ListedColormap(
+                ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
+                 "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc",
+                 "#000099"])
+
+            depth_arr = []
+            for i in arange(0, maxDepth + 1, 1):
+                depth_arr.append(i)
+            levels = np.array(depth_arr)
+            cpf = ax.contourf(X, Y, Z,
+                              levels,
+                              cmap=cmap)
+            line_colors = ['black' for l in cpf.levels]
+            cp = ax.contour(X, Y, Z,
+                            levels=levels,
+                            colors=line_colors,
+                            linewidths=0.3)
+            clevels = []
+            for i in range(0, maxDepth + 1, 1):
+                clevels.append(i)
+            ax.clabel(cp,
+                      fontsize=7,
+                      colors=line_colors,
+                      levels=clevels,
+                      # inline=False,
+                      inline_spacing=1
+                      )
+            ax.set_position([0, 0, 1, 1])
+
+            self.getCornersCoords()
+            min_dolg = float(self.coordsNW.split(',')[1])
+            max_dolg = float(self.coordsNE.split(',')[1])
+            min_shir = float(self.coordsSW.split(',')[0])
+            max_shir = float(self.coordsNW.split(',')[0])
+
+            central_lat = (min_shir + max_shir) / 2
+            mercator_aspect_ratio = 1 / cos(radians(central_lat))
+            print(mercator_aspect_ratio)
+            ax.set_aspect(mercator_aspect_ratio)
+            #plt.axis('off')
+            #plt.axis([37.865750, 37.879610, 55.634572, 55.640436])
+            plt.axis([min_dolg, max_dolg, min_shir, max_shir])
+            plt.axis('off')
+            # refresh canvas
+            self.canvas.draw()
 
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            print("position global MW = ", event.globalPos())
-            print("position otnos MW = ", event.pos())
             self.mouse_old_pos = event.pos()
             self.myWidget.setLabelOldPos(self.myWidget.getCurrentLabelMapPos())
+            self.shipWidget.setShipOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
-            print(self.label_old_pos, self.ship_old_pos)
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -913,6 +1110,8 @@ class MainWindow(QMainWindow):
             self.myWidget.doCentrPixels()
             if self.myWidget.getNewCenter() != '':
                 Settings.CENTR_LAT, Settings.CENTR_LON = self.myWidget.getNewCenter().split(', ')
+        self.showStatusBarMessage()
+        self.plot()
 
     def mouseMoveEvent(self, event):
         self.myWidget.makeMovingCenterFalse()
@@ -922,19 +1121,41 @@ class MainWindow(QMainWindow):
         self.gridWidget.labelGridUpdate()
         self.gridWidget.proxyToGridPosition(self.myWidget.getLabelMapPosition())
 
+        self.gridW.setCurrentMapPosition(self.myWidget.getLabelMapPosition())
+        self.gridW.setModyfyed()
+        self.gridW.update()
+
         if not self.mouse_old_pos:
             return
         # разница в передвижении:
         delta = event.pos() - self.mouse_old_pos
         self.myWidget.mooving(delta)
+        self.shipWidget.mooving(delta)
+
+
 
     def mouseDoubleClickEvent(self, event):
-        print("MOUSE MW:", event.pos())
+        #print("MOUSE MW:", event.pos())
         pos = self.myWidget.getCurrentLabelMapPos()
         point = self.myWidget.getCoord(pos.x(), pos.y(),
                              event.pos().x(), event.pos().y() - self.titleBarHeight*2)
         curLat1, curLon1 = point.split(', ')
         print('click! 1:', " .2: ", curLat1, curLon1)
+        self.getCornersCoords()
+        self.plot()
+
+    def getCornersCoords(self):
+        pos = self.myWidget.getCurrentLabelMapPos()
+
+        self.coordsNW = self.myWidget.getCoord(pos.x(), pos.y(),
+                             0, 0)
+        self.coordsSW = self.myWidget.getCoord(pos.x(), pos.y(),
+                             0, Settings.DESCTOP_HEIGHT)
+        self.coordsNE = self.myWidget.getCoord(pos.x(), pos.y(),
+                             Settings.DESCTOP_WIDHT, 0)
+        self.coordsSE = self.myWidget.getCoord(pos.x(), pos.y(),
+                             Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
+        print("CORNERS", self.coordsNW, self.coordsSW, self.coordsNE, self.coordsSE)
 
     def checkSettings(self):
         self.lineEditDebug.setText("")
@@ -942,6 +1163,8 @@ class MainWindow(QMainWindow):
             self.lineEditDebug.setVisible(True)
         else:
             self.lineEditDebug.setVisible(False)
+        self.circles.checkVisible()
+        self.circles.update()
 
     def zoomMinus(self):
         current_scale = self.scale.value()
@@ -956,13 +1179,20 @@ class MainWindow(QMainWindow):
     def updateScale(self):
         current_scale = self.scale.value()
         self.gridWidget.zoom_grid()
+        self.gridW.zoom_grid()
         self.myWidget.updateScale(current_scale)
         strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
-        self.statusBar.showMessage(strStatus)
+        self.showStatusBarMessage()
+        self.plot()
+        #self.statusBar.showMessage(strStatus)
 
+    def showStatusBarMessage(self):
+        pass
+        #message = "scale: {}m, grid: {}, radius: {}".format(Settings().getGridScale(), Settings().getScale(), Settings.FISHING_SIRCLE_RADIUS)
+        #self.statusBar.showMessage(message)
 
     def createGrid(self):
-        self.gridWidget.createGrid()
+        self.gridW.createGrid()
 
     def setCenterMoving(self):
         if self.keepCenter == False:
@@ -976,6 +1206,11 @@ class MainWindow(QMainWindow):
 
     def openMNEAsettingsWindow(self):
         dialog = SettingsDialog(self)
+        dialog.exec_()
+        dialog.show()
+
+    def openMAPsettingsWindow(self):
+        dialog = SettingsMap(self)
         dialog.exec_()
         dialog.show()
 
@@ -1071,7 +1306,8 @@ class MainWindow(QMainWindow):
                     self.LCDspeed.display(speed)
                     ship_coords = self.myWidget.getPointByCoordsCorner(LatDEC, LonDEC)
                     new_x, new_y = ship_coords
-                    self.shipWidget.moveLabelShip(new_x, new_y)
+                    self.shipWidget.moveLabelShip(new_x, new_y, int(course))
+                    self.circles.setShipPosition(new_x, new_y, int(course))
                     #self.shipWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
                 else:
                     now = QTime.currentTime()
@@ -1092,6 +1328,135 @@ class MainWindow(QMainWindow):
                 return Dec
         except Exception as e:
             print(e, ' NMEA2decimal ', strNMEA)
+
+
+class SettingsMap(QDialog):
+    def __init__(self, MainWindow):
+        super().__init__(parent=MainWindow)
+        self.mainWindow = MainWindow
+        self.setWindowTitle("Map Settings")
+        self.setGeometry(0, 0, 420, 400)
+        self.setCenter()
+
+        self.base_y = 20
+
+        self.labelNeedCircles = QLabel(self)
+        self.labelNeedCircles.setText('Circles:')
+        self.labelNeedCircles.move(5, self.base_y)
+
+        self.checkCircles = QCheckBox(self)
+        self.checkCircles.move(70, self.base_y)
+        if Settings.NEED_FISHING_CIRCLE:
+            self.checkCircles.setCheckState(True)
+        else:
+            self.checkCircles.setCheckState(False)
+
+        self.labelNeedVector = QLabel(self)
+        self.labelNeedVector.setText('Vector:')
+        self.labelNeedVector.move(5, self.base_y + 30)
+
+        self.checkVector = QCheckBox(self)
+        self.checkVector.move(70, self.base_y + 30)
+        if Settings.NEED_RADIUS_VECTOR:
+            self.checkVector.setCheckState(True)
+        else:
+            self.checkVector.setCheckState(False)
+
+        self.labelQntCircles = QLabel(self)
+        self.labelQntCircles.setText('Qnt circles:')
+        self.labelQntCircles.move(5, self.base_y + 60)
+
+        self.labelQntCirclesCOUNT = QLabel(self)
+        self.labelQntCirclesCOUNT.setText(str(Settings.FISHING_SIRCLE_QNT))
+        self.labelQntCirclesCOUNT.move(70, self.base_y + 60)
+
+        self.qnrCircles = QSlider(self)
+        self.qnrCircles.invertedControls()
+        self.qnrCircles.setMinimum(1)
+        self.qnrCircles.setMaximum(4)
+        self.qnrCircles.setPageStep(1)
+        self.qnrCircles.setSliderPosition(Settings.FISHING_SIRCLE_QNT)
+        self.qnrCircles.setTickInterval(1)
+        self.qnrCircles.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.qnrCircles.move(100, self.base_y + 55)
+        self.qnrCircles.valueChanged.connect(self.updateQntCircles)
+
+        self.labelRadCircles = QLabel(self)
+        self.labelRadCircles.setText('Rad circle:')
+        self.labelRadCircles.move(5, self.base_y + 90)
+
+        self.labelRadCirclesMetr = QLabel(self)
+        self.labelRadCirclesMetr.setText(str(Settings.FISHING_SIRCLE_RADIUS))
+        self.labelRadCirclesMetr.move(70, self.base_y + 90)
+
+        self.CirclesRad = QSlider(self)
+        self.CirclesRad.invertedControls()
+        self.CirclesRad.setMinimum(20)
+        self.CirclesRad.setMaximum(90)
+        self.CirclesRad.setPageStep(10)
+        self.CirclesRad.setSliderPosition(Settings.FISHING_SIRCLE_RADIUS)
+        self.CirclesRad.setTickInterval(10)
+        self.CirclesRad.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.CirclesRad.move(100, self.base_y + 85)
+        self.CirclesRad.valueChanged.connect(self.updateRadCircles)
+
+        self.labelColorCircles = QLabel(self)
+        self.labelColorCircles.setText('Color:')
+        self.labelColorCircles.move(5, self.base_y + 120)
+
+        self.buttonColor = QPushButton(self)
+        if Settings.CIRCLE_COLOR is not None:
+            self.buttonColor.setStyleSheet(
+                "background-color:{};".format(Settings.CIRCLE_COLOR)
+            )
+        self.buttonColor.setFixedSize(20, 20)
+        self.buttonColor.move(70, self.base_y + 115)
+        self.buttonColor.clicked.connect(self.colorDialog)
+
+        self.buttonOK = QPushButton(self)
+        self.buttonOK.setText("OK")
+        self.buttonOK.move(250, 350)
+        self.buttonOK.clicked.connect(self.returnOK)
+        self.buttonNOT = QPushButton(self)
+        self.buttonNOT.setText("Cancel")
+        self.buttonNOT.move(330, 350)
+        self.buttonNOT.clicked.connect(self.returnNOT)
+
+    def colorDialog(self):
+        qi = QColorDialog()
+        color = qi.getColor(QColor(40, 253, 40), None)
+        print(color.name())
+        Settings.CIRCLE_COLOR = color.name()
+
+    def updateRadCircles(self):
+        self.labelRadCirclesMetr.setText(str(self.CirclesRad.value()))
+        Settings.FISHING_SIRCLE_RADIUS = self.CirclesRad.value()
+
+    def updateQntCircles(self):
+        self.labelQntCirclesCOUNT.setText(str(self.qnrCircles.value()))
+        Settings.FISHING_SIRCLE_QNT = self.qnrCircles.value()
+
+    def setCenter(self):
+        resolution = QDesktopWidget().screenGeometry()
+        self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
+                  int((resolution.height() / 2) - (self.frameSize().height() / 2)))
+
+    def returnOK(self):
+        if (self.checkCircles.isChecked() == True):
+            Settings.NEED_FISHING_CIRCLE = True
+        else:
+            Settings.NEED_FISHING_CIRCLE = False
+
+        if (self.checkVector.isChecked() == True):
+            Settings.NEED_RADIUS_VECTOR = True
+        else:
+            Settings.NEED_RADIUS_VECTOR = False
+
+        self.mainWindow.checkSettings()
+        self.accept()
+
+    def returnNOT(self):
+        self.close()
 
 
 class SettingsDialog(QDialog):
@@ -1115,6 +1480,7 @@ class SettingsDialog(QDialog):
         self.labelBaudRate = QLabel(self)
         self.labelBaudRate.setText('Baud rate:')
         self.labelBaudRate.move(5, 50)
+
         self.comboBaud = QComboBox(self)
         self.comboBaud.addItems(Settings.BAUD_RATES)
         self.comboBaud.move(70, 46)
@@ -1174,7 +1540,6 @@ class SettingsDialog(QDialog):
 
     def returnNOT(self):
         self.close()
-
 
 
 if __name__ == '__main__':
