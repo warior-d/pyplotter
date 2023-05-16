@@ -868,7 +868,9 @@ class MainWindow(QMainWindow):
         self.openMapFileAction.triggered.connect(self.createGrid)
         self.menuOpenMap = self.menuOpen.addAction(self.openMapFileAction)
         # File -> Open -> Open Depth File
-        self.menuOpenDepth = self.menuOpen.addAction('Depth File')
+        self.openDepthFileAction = QAction(QIcon('icons/open.png'), 'Depth File', self)
+        self.openDepthFileAction.triggered.connect(self.getDepthMapFile)
+        self.menuOpenDepth = self.menuOpen.addAction(self.openDepthFileAction)
         # File.Connect
         self.comConnectAction = QAction(self)
         self.comConnectAction.setText('Connect...')
@@ -1028,45 +1030,53 @@ class MainWindow(QMainWindow):
         print(self.frameGeometry().width(), self.frameGeometry().height())
 
 
+    def getDepthMapFile(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, 'Depth Data', r"", "CSV(*.csv);;All Files(*.*)")
+
+        # распарсим на ФАЙЛ и ПУТЬ
+        filename = Path(file_name).name
+        dir = Path(file_name).parent
+        # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
+        fileSourseName, fileSourseExtension = filename.split('.')
+        Settings.FILE_DEPTH_NAME = filename
+        self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
+        self.contour_data.head()
+        self.maxDepth = ceil(self.contour_data['z'].max())
+
+        self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
+        self.X_unique = np.sort(self.contour_data.x.unique())
+        self.Y_unique = np.sort(self.contour_data.y.unique())
+        self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
+
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
+            # TODO - как работать с CSV - может, его сбросить???
             self.figure.clear()
-            contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
-            contour_data.head()
-            maxDepth = ceil(contour_data['z'].max())
-            Z = contour_data.pivot_table(index='x', columns='y', values='z').T.values
-            X_unique = np.sort(contour_data.x.unique())
-            Y_unique = np.sort(contour_data.y.unique())
-            X, Y = np.meshgrid(X_unique, Y_unique)
             # Initialize plot objects
             rcParams['toolbar'] = 'None'
             # rcParams['figure.figsize'] = 20, 10 # sets plot size
             ax = self.figure.add_subplot(111)
 
-            # Цветовая карта
-            colors = ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
-                      "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc",
-                      "#000099"]
-            cmap1 = LinearSegmentedColormap.from_list("mycmap", colors)
             cmap = ListedColormap(
                 ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
                  "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc",
                  "#000099"])
 
             depth_arr = []
-            for i in arange(0, maxDepth + 1, 1):
+            for i in arange(0, self.maxDepth + 1, 1):
                 depth_arr.append(i)
             levels = np.array(depth_arr)
-            cpf = ax.contourf(X, Y, Z,
+            cpf = ax.contourf(self.X, self.Y, self.Z,
                               levels,
                               cmap=cmap)
             line_colors = ['black' for l in cpf.levels]
-            cp = ax.contour(X, Y, Z,
+            cp = ax.contour(self.X, self.Y, self.Z,
                             levels=levels,
                             colors=line_colors,
                             linewidths=0.3)
             clevels = []
-            for i in range(0, maxDepth + 1, 1):
+            for i in range(0, self.maxDepth + 1, 1):
                 clevels.append(i)
             ax.clabel(cp,
                       fontsize=7,
@@ -1085,13 +1095,12 @@ class MainWindow(QMainWindow):
 
             central_lat = (min_shir + max_shir) / 2
             mercator_aspect_ratio = 1 / cos(radians(central_lat))
-            print(mercator_aspect_ratio)
+            #print(mercator_aspect_ratio)
             ax.set_aspect(mercator_aspect_ratio)
             #plt.axis('off')
             #plt.axis([37.865750, 37.879610, 55.634572, 55.640436])
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
-            # refresh canvas
             self.canvas.draw()
 
 
@@ -1130,8 +1139,6 @@ class MainWindow(QMainWindow):
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
 
-
-
     def mouseDoubleClickEvent(self, event):
         #print("MOUSE MW:", event.pos())
         pos = self.myWidget.getCurrentLabelMapPos()
@@ -1139,8 +1146,6 @@ class MainWindow(QMainWindow):
                              event.pos().x(), event.pos().y() - self.titleBarHeight*2)
         curLat1, curLon1 = point.split(', ')
         print('click! 1:', " .2: ", curLat1, curLon1)
-        self.getCornersCoords()
-        self.plot()
 
     def getCornersCoords(self):
         pos = self.myWidget.getCurrentLabelMapPos()
@@ -1153,7 +1158,7 @@ class MainWindow(QMainWindow):
                              Settings.DESCTOP_WIDHT, 0)
         self.coordsSE = self.myWidget.getCoord(pos.x(), pos.y(),
                              Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
-        print("CORNERS", self.coordsNW, self.coordsSW, self.coordsNE, self.coordsSE)
+        #print("CORNERS", self.coordsNW, self.coordsSW, self.coordsNE, self.coordsSE)
 
     def checkSettings(self):
         self.lineEditDebug.setText("")
