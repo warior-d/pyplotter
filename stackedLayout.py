@@ -922,22 +922,20 @@ class MainWindow(QMainWindow):
         self.circles = Circles()
 
         #####
-        if Settings.FILE_DEPTH_NAME is not None:
-            self.figure = plt.figure()
-            self.figure.set_alpha(0)
-            self.figure.patch.set_facecolor("None")
-            self.canvas = FigureCanvas(self.figure)
-            self.canvas.setStyleSheet("background-color:transparent;")
-            if self.coordsNW is not None:
-                self.plot()
+        self.figure = plt.figure()
+        self.figure.set_alpha(0)
+        self.figure.patch.set_facecolor("None")
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setStyleSheet("background-color:transparent;")
+        if Settings.FILE_DEPTH_NAME is not None and self.coordsNW is not None:
+            self.plot()
         #####
 
         layout = QStackedLayout()
         layout.setStackingMode(QStackedLayout.StackAll)
 
         layout.addWidget(self.myWidget)
-        if Settings.FILE_DEPTH_NAME is not None:
-            layout.addWidget(self.canvas)
+        layout.addWidget(self.canvas)
         layout.addWidget(self.gridW)
         layout.addWidget(self.shipWidget)
         layout.addWidget(self.circles)
