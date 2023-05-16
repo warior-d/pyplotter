@@ -1052,6 +1052,8 @@ class MainWindow(QMainWindow):
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
             # TODO - как работать с CSV - может, его сбросить???
+            # TODO - Ход конем!!! вся карта - картинка, лишь некая область - plot!
+            # TODO - позамерять времена здесь!
             self.figure.clear()
             # Initialize plot objects
             rcParams['toolbar'] = 'None'
@@ -1067,17 +1069,21 @@ class MainWindow(QMainWindow):
             for i in arange(0, self.maxDepth + 1, 1):
                 depth_arr.append(i)
             levels = np.array(depth_arr)
+
             cpf = ax.contourf(self.X, self.Y, self.Z,
                               levels,
                               cmap=cmap)
             line_colors = ['black' for l in cpf.levels]
+
             cp = ax.contour(self.X, self.Y, self.Z,
                             levels=levels,
                             colors=line_colors,
                             linewidths=0.3)
             clevels = []
+
             for i in range(0, self.maxDepth + 1, 1):
                 clevels.append(i)
+
             ax.clabel(cp,
                       fontsize=7,
                       colors=line_colors,
@@ -1095,10 +1101,7 @@ class MainWindow(QMainWindow):
 
             central_lat = (min_shir + max_shir) / 2
             mercator_aspect_ratio = 1 / cos(radians(central_lat))
-            #print(mercator_aspect_ratio)
             ax.set_aspect(mercator_aspect_ratio)
-            #plt.axis('off')
-            #plt.axis([37.865750, 37.879610, 55.634572, 55.640436])
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
             self.canvas.draw()
