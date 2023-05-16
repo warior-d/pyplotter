@@ -1031,23 +1031,24 @@ class MainWindow(QMainWindow):
 
 
     def getDepthMapFile(self):
+        Settings.FILE_DEPTH_NAME = None
         file_name, _ = QFileDialog.getOpenFileName(
             self, 'Depth Data', r"", "CSV(*.csv);;All Files(*.*)")
+        if file_name:
+            # распарсим на ФАЙЛ и ПУТЬ
+            filename = Path(file_name).name
+            dir = Path(file_name).parent
+            # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
+            fileSourseName, fileSourseExtension = filename.split('.')
+            Settings.FILE_DEPTH_NAME = filename
+            self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
+            self.contour_data.head()
+            self.maxDepth = ceil(self.contour_data['z'].max())
 
-        # распарсим на ФАЙЛ и ПУТЬ
-        filename = Path(file_name).name
-        dir = Path(file_name).parent
-        # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
-        fileSourseName, fileSourseExtension = filename.split('.')
-        Settings.FILE_DEPTH_NAME = filename
-        self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
-        self.contour_data.head()
-        self.maxDepth = ceil(self.contour_data['z'].max())
-
-        self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
-        self.X_unique = np.sort(self.contour_data.x.unique())
-        self.Y_unique = np.sort(self.contour_data.y.unique())
-        self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
+            self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
+            self.X_unique = np.sort(self.contour_data.x.unique())
+            self.Y_unique = np.sort(self.contour_data.y.unique())
+            self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
 
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
