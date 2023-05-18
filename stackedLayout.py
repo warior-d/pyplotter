@@ -3,7 +3,7 @@
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
-    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog
+    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -15,7 +15,7 @@ from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
 from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime
@@ -31,6 +31,9 @@ from math import cos, radians, ceil
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.figure import Figure
 #############
+import stylescss as styles
+
+
 
 def getCoordsFromKML(kmlfile):
     tree = ET.parse(kmlfile)
@@ -128,7 +131,14 @@ class Settings():
     GPS_X = None
     GPS_Y = None
     KEEP_SHIP = 0
+    PLOT_PALETTE = {"Base": ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
+                            "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc", "#000099"],
+                    "Bright": ["#cc7f7f", "#e57f7f", "#ff7f7f", "#ff997f", "#ffb27f", "#ffcc7f", "#ffcc7f", "#ffff7f", "#e5ff99",
+                               "#ccffb2", "#b2ffcc", "#99ffe5", "#7fffff", "#7fe5ff", "#7fccff", "#7fb2ff", "#7f99ff", "#7f7fff", "#7f7fe5", "#7f7fcc"],
+                    "Water": ["#A9D6E5", "#89C2D9", "#61A5C2", "#468FAF", "#2C7DA0", "#2A6F97", "#014F86", "#01497C", "#013A63", "#012A4A", "#01243E"]
+                    }
     DEBUG_INFO = False
+
 
     # установка текущего масштаба (1 - 9)
     def setScale(self, scale):
@@ -237,6 +247,18 @@ class LabelGrid(QLabel):
 
     def setCurrentMapPosition(self, position):
         self.posLabelMap = position
+
+
+class WhiteBack(QWidget):
+    def __init__(self):
+        super().__init__()
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
+        Settings.DESCTOP_WIDHT = screen_width
+        Settings.DESCTOP_HEIGHT = screen_height
+        self.setGeometry(0, 0, screen_width, screen_height)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet('background-color: white;')
 
 
 class MapGrid(QWidget):
@@ -348,6 +370,7 @@ class GridWidget(QWidget):
         screen_height = QApplication.instance().desktop().availableGeometry().height()
         Settings.DESCTOP_WIDHT = screen_width
         Settings.DESCTOP_HEIGHT = screen_height
+        print("RODY", self.size().height())
         self.setGeometry(0, 0, screen_width, screen_height)
         self.IsModyfied = True
         self.posLabelMap = QPoint(Settings.POS_X, Settings.POS_Y)
@@ -357,6 +380,8 @@ class GridWidget(QWidget):
         self.setVisible(False)
 
     def paintEvent(self, event):
+        self.window_height = self.size().height()
+        self.window_width = self.size().width()
         if self.IsModyfied == True:
             pixmap = QPixmap(self.size())
             pixmap.fill(QColor(0, 0, 0, 0))
@@ -367,20 +392,20 @@ class GridWidget(QWidget):
             if (self.lastX != currentPosition.x()) or (self.lastY != currentPosition.y()):
                 dx = self.lastX - currentPosition.x()
                 dy = self.lastY - currentPosition.y()
-            x = int(Settings.DESCTOP_WIDHT / 2) - dx
-            y = int(Settings.DESCTOP_HEIGHT / 2) - dy
-            qntX = int(Settings.DESCTOP_WIDHT / Settings.GRID_STEP)
-            qntY = int(Settings.DESCTOP_HEIGHT / Settings.GRID_STEP)
+            x = int(self.window_width / 2) - dx
+            y = int(self.window_height / 2) - dy
+            qntX = int(self.window_width / Settings.GRID_STEP)
+            qntY = int(self.window_height / Settings.GRID_STEP)
             # TODO: теперь сюда нужно посчитать смещение, прибавить по X и Y!
             # докрутить!
-            for i in range(int(Settings.DESCTOP_WIDHT / qntX), Settings.DESCTOP_WIDHT + abs(dx), Settings.GRID_STEP):
-                painter.drawLine(x, 0, x, Settings.DESCTOP_HEIGHT)
-                painter.drawLine(x + i, 0, x + i, Settings.DESCTOP_HEIGHT)
-                painter.drawLine(x - i, 0, x - i, Settings.DESCTOP_HEIGHT)
-            for i in range(int(Settings.DESCTOP_HEIGHT / qntY), Settings.DESCTOP_HEIGHT + abs(dy), Settings.GRID_STEP):
-                painter.drawLine(0, y, Settings.DESCTOP_WIDHT, y)
-                painter.drawLine(0, y + i, Settings.DESCTOP_WIDHT, y + i)
-                painter.drawLine(0, y - i, Settings.DESCTOP_WIDHT, y - i)
+            for i in range(int(self.window_width / qntX), self.window_width + abs(dx), Settings.GRID_STEP):
+                painter.drawLine(x, 0, x, self.window_height)
+                painter.drawLine(x + i, 0, x + i, self.window_height)
+                painter.drawLine(x - i, 0, x - i, self.window_height)
+            for i in range(int(self.window_height / qntY), self.window_height + abs(dy), Settings.GRID_STEP):
+                painter.drawLine(0, y, self.window_width, y)
+                painter.drawLine(0, y + i, self.window_width, y + i)
+                painter.drawLine(0, y - i, self.window_width, y - i)
             self.mPixmap = pixmap
             self.IsModyfied = False
 
@@ -486,6 +511,9 @@ class Main(QWidget):
 
     def __init__(self):
         super().__init__()
+        print("widget: self.size:", self.size())
+        print("widget: availableGeometry1:", QApplication.instance().desktop().availableGeometry())
+        self.printSize()
         screen_width = QApplication.instance().desktop().availableGeometry().width()
         screen_height = QApplication.instance().desktop().availableGeometry().height()
         Settings.DESCTOP_WIDHT = screen_width
@@ -521,6 +549,9 @@ class Main(QWidget):
         # Определим РЕАЛЬНОЕ (по координатам) расстояние между точками из KML
         # И отобразим на карте!
         # TODO : возможно, ресайзить нужно backgroung...
+
+    def printSize(self):
+        print("widget: availableGeometry2:", QApplication.instance().desktop().availableGeometry())
 
     def mousePressEvent(self, event):
         print("position global widget = ", event.globalPos())
@@ -858,6 +889,9 @@ class MainWindow(QMainWindow):
     coordsSE = None
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        print("main window: self.size:", self.size())
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        '''
         self.mainmenu = self.menuBar()
         # File ->
         self.menuFile = self.mainmenu.addMenu('File')
@@ -901,27 +935,21 @@ class MainWindow(QMainWindow):
         self.menuMAPAction.triggered.connect(self.openMAPsettingsWindow)
         self.menuMAPAction.setShortcut('Ctrl+M')
         self.menuMAP = self.menuSettings.addAction(self.menuMAPAction)
+'''
+        #self.toolbar = QToolBar()
+        #self.addToolBar(self.toolbar)
+        #self.toolbar.addAction(self.menuNMEAAction)
 
-        self.toolbar = QToolBar()
-        self.addToolBar(self.toolbar)
-        self.toolbar.addAction(self.menuNMEAAction)
-
-        self.toolbar.addAction(self.comConnectAction)
-        self.toolbar.addAction(self.exitAction)
-
-        # self.toolbar = self.addToolBar('Exit')
-
-        self.titleBarHeight = self.style().pixelMetric(
-            QStyle.PM_TitleBarHeight,
-            QStyleOptionTitleBar(),
-            self
-        )
-
+        #self.toolbar.addAction(self.comConnectAction)
+        #self.toolbar.addAction(self.exitAction)
+        #self.toolbar = self.addToolBar('Exit')
+        print("RODMV", self.size().height())
         self.myWidget = Main()
         self.gridWidget = MapGrid()
         self.shipWidget = LabelMapShip()
         self.gridW = GridWidget()
         self.circles = Circles()
+        self.whiteBack = WhiteBack()
 
         #####
         self.figure = plt.figure()
@@ -936,6 +964,7 @@ class MainWindow(QMainWindow):
         layout = QStackedLayout()
         layout.setStackingMode(QStackedLayout.StackAll)
 
+        layout.addWidget(self.whiteBack)
         layout.addWidget(self.myWidget)
         layout.addWidget(self.canvas)
         layout.addWidget(self.gridW)
@@ -947,55 +976,24 @@ class MainWindow(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
-        '''
-        self.statusBar = self.statusBar()
-        strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
-        self.statusBar.showMessage(strStatus)
-        '''
-
-        self.scale = QSlider(self)
-        self.scale.invertedControls()
-        self.scale.setMinimum(1)
-        self.scale.setMaximum(9)
-        self.scale.setPageStep(1)
-        self.scale.setSliderPosition(Settings().getScale())
-        self.scale.setTickInterval(1)
-        self.scale.setOrientation(QtCore.Qt.Vertical)
-        self.scale.setTickPosition(QtWidgets.QSlider.TicksAbove)
-        self.labelScale1 = QLabel(self)
-        self.labelScale1.setText('1')
-        self.labelScale1.setGeometry(int(Settings.DESCTOP_WIDHT - 45), int(Settings.DESCTOP_HEIGHT/2) + 120, 50, 50)
-        self.labelScale9 = QLabel(self)
-        self.labelScale9.setText('9')
-        self.labelScale9.setGeometry(int(Settings.DESCTOP_WIDHT - 45), int(Settings.DESCTOP_HEIGHT/2) - 170 , 50, 50)
-        self.labelScale5 = QLabel(self)
-        self.labelScale5.setText('5')
-        self.labelScale5.setGeometry(int(Settings.DESCTOP_WIDHT - 45), int(Settings.DESCTOP_HEIGHT/2) - 25, 50, 50)
-        if Settings.DESCTOP_WIDHT is not None:
-            self.scale.setGeometry(int(Settings.DESCTOP_WIDHT - 40), int(Settings.DESCTOP_HEIGHT/2) - 150, 40, 300)
-        else:
-            self.scale.setGeometry(1575, 320, 30, 300)
-        self.scale.valueChanged.connect(self.updateScale)
-
         self.baseLCDy = 60
-        self.LCDspeed = QLCDNumber(self)
-        self.LCDspeed.setStyleSheet("QLCDNumber { background-color: white; color: red; }")
-        self.LCDspeed.setGeometry(5, self.baseLCDy, 110, 60)
 
-        self.LCDcourse = QLCDNumber(self)
-        self.LCDcourse.setStyleSheet("QLCDNumber { background-color: white; color: blue; }")
-        self.LCDcourse.setGeometry(5, self.baseLCDy + 60, 110, 60)
+        shadow = QtWidgets.QGraphicsDropShadowEffect(self,
+            blurRadius=14.0,
+            color = QColor("white"),
+            offset = QtCore.QPointF(0.0, 0.0))
+        self.labelLetterDepth = QLabel(self)
+        self.labelLetterDepth.setGeometry(12, 20, 120, 20)
+        self.labelLetterDepth.setText("DEPTH    M")
+        self.labelLetterDepth.setStyleSheet(styles.labelLetterDepth)
+        self.labelLetterDepth.setGraphicsEffect(shadow)
 
-        self.LCDdepth = QLCDNumber(self)
-        self.LCDdepth.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
-        self.LCDdepth.setGeometry(5, self.baseLCDy + 120, 110, 60)
+        self.labelDepth = QLabel(self)
+        self.labelDepth.setGeometry(20, 50, 150, 50)
+        self.labelDepth.setText("-.-")
+        self.labelDepth.setStyleSheet(styles.labelDepth)
+        self.labelDepth.setGraphicsEffect(shadow)
 
-        self.LCDtime = QLCDNumber(self)
-        self.LCDtime.setStyleSheet("QLCDNumber { background-color: white; color: black; }")
-        self.LCDtime.setGeometry(5, self.baseLCDy + 180, 110, 60)
-
-        self.labelInfo = QLabel(self)
-        self.labelInfo.setGeometry(5, 230, 210, 30)
         self.serial = QSerialPort(self)
 
         self.buttonKeep = QPushButton(self)
@@ -1005,19 +1003,21 @@ class MainWindow(QMainWindow):
         self.buttonKeep.clicked.connect(self.setCenterMoving)
 
         self.buttonZoomMinus = QPushButton(self)
-        self.buttonZoomMinus.setGeometry(int(Settings.DESCTOP_WIDHT - 40),
-                                        int(Settings.DESCTOP_HEIGHT/2) - 190,
-                                        30,
-                                        30)
+        self.buttonZoomMinus.setGeometry(int(Settings.DESCTOP_WIDHT/2),
+                                        int(Settings.DESCTOP_HEIGHT) - 5,
+                                        50,
+                                        50)
         self.buttonZoomMinus.setText("-")
+        self.buttonZoomMinus.setStyleSheet(styles.buttonZOOMminus)
         self.buttonZoomMinus.clicked.connect(self.zoomMinus)
 
         self.buttonZoomPlus = QPushButton(self)
-        self.buttonZoomPlus.setGeometry(int(Settings.DESCTOP_WIDHT - 40),
-                                        int(Settings.DESCTOP_HEIGHT/2) + 160,
-                                        30,
-                                        30)
+        self.buttonZoomPlus.setGeometry(int(Settings.DESCTOP_WIDHT/2 - 50),
+                                        int(Settings.DESCTOP_HEIGHT) - 5,
+                                        50,
+                                        50)
         self.buttonZoomPlus.setText("+")
+        self.buttonZoomPlus.setStyleSheet(styles.buttonZOOMplus)
         self.buttonZoomPlus.clicked.connect(self.zoomPlus)
 
         self.lineEditDebug = QTextBrowser(self)
@@ -1029,6 +1029,46 @@ class MainWindow(QMainWindow):
         self.keepCenter = False
         print(self.frameGeometry().width(), self.frameGeometry().height())
 
+        self.menu = QMenu(self)
+        self.menu.setFixedWidth(170)
+        self.menu.setStyleSheet(styles.menuStyle)
+
+        self.subMenuSettings = self.menu.addMenu('Settings')
+        self.settingsNMEAAction = QAction('NMEA', self)
+        self.settingsNMEAAction.triggered.connect(self.openMNEAsettingsWindow)
+        self.subMenuSettings.addAction(self.settingsNMEAAction)
+        self.settingsMapsAction = QAction('Map', self)
+        self.settingsMapsAction.triggered.connect(self.openMAPsettingsWindow)
+        self.subMenuSettings.addAction(self.settingsMapsAction)
+
+        self.subMenuMaps = self.menu.addMenu('Maps ...')
+        self.depthMapAction = QAction('Depth', self)
+        self.depthMapAction.triggered.connect(self.getDepthMapFile)
+        self.subMenuMaps.addAction(self.depthMapAction)
+
+        self.connectAction = QAction('Connect', self)
+        self.connectAction.triggered.connect(self.waitingSerial)
+        self.menu.addAction(self.connectAction)
+
+        self.addGridAction = QAction('Add Grid', self)
+        self.addGridAction.triggered.connect(self.createGrid)
+        self.menu.addAction(self.addGridAction)
+
+        ##### EXIT #####
+        self.exitAction = QAction('Exit', self)
+        self.exitAction.triggered.connect(qApp.quit)
+        self.menu.addAction(self.exitAction)
+
+        self.button = QToolButton(self)
+        self.button.setMenu(self.menu)
+        self.button.setPopupMode(QToolButton.InstantPopup)
+        self.button.setText('Menu')
+        self.button.setGeometry(int(Settings.DESCTOP_WIDHT - 170), 0, 170, 60)
+        self.button.setStyleSheet(styles.menuButtonStyle)
+
+        self.current_scale = Settings.DEFAULT_MASHTAB
+
+
 
     def getDepthMapFile(self):
         Settings.FILE_DEPTH_NAME = None
@@ -1037,12 +1077,30 @@ class MainWindow(QMainWindow):
         if file_name:
             # распарсим на ФАЙЛ и ПУТЬ
             filename = Path(file_name).name
+
             dir = Path(file_name).parent
             # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
             fileSourseName, fileSourseExtension = filename.split('.')
             Settings.FILE_DEPTH_NAME = filename
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
             self.contour_data.head()
+
+            lat_max = self.contour_data['y'].max()
+            lat_min = self.contour_data['y'].min()
+            lon_max = self.contour_data['x'].max()
+            lon_min = self.contour_data['x'].min()
+
+            real_distance_map_ver = distanceBetweenPointsMeters(lat_min,
+                                                            lon_min,
+                                                            lat_max,
+                                                            lon_min)
+            print(real_distance_map_ver)
+            real_distance_map_hor = distanceBetweenPointsMeters(lat_min,
+                                                            lon_min,
+                                                            lat_min,
+                                                            lon_max)
+            print(real_distance_map_hor)
+            print(real_distance_map_hor / real_distance_map_ver)
             self.maxDepth = ceil(self.contour_data['z'].max())
 
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
@@ -1061,16 +1119,12 @@ class MainWindow(QMainWindow):
             # rcParams['figure.figsize'] = 20, 10 # sets plot size
             ax = self.figure.add_subplot(111)
 
-            cmap = ListedColormap(
-                ["#990000", "#cc0000", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ccff33", "#99ff66",
-                 "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc",
-                 "#000099"])
+            cmap = ListedColormap(Settings.PLOT_PALETTE["Water"])
 
             depth_arr = []
             for i in arange(0, self.maxDepth + 1, 1):
                 depth_arr.append(i)
             levels = np.array(depth_arr)
-
             cpf = ax.contourf(self.X, self.Y, self.Z,
                               levels,
                               cmap=cmap)
@@ -1099,14 +1153,15 @@ class MainWindow(QMainWindow):
             max_dolg = float(self.coordsNE.split(',')[1])
             min_shir = float(self.coordsSW.split(',')[0])
             max_shir = float(self.coordsNW.split(',')[0])
-
+            # 55.63850458503025, 37.87495768957512
+            # TODO - а у пацана верно было.. Считать +- N км от центральной точки
             central_lat = (min_shir + max_shir) / 2
-            mercator_aspect_ratio = 1 / cos(radians(central_lat))
+            mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
+            #print("mercator_aspect_ratio:", mercator_aspect_ratio)
             ax.set_aspect(mercator_aspect_ratio)
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
             self.canvas.draw()
-
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -1147,22 +1202,26 @@ class MainWindow(QMainWindow):
         #print("MOUSE MW:", event.pos())
         pos = self.myWidget.getCurrentLabelMapPos()
         point = self.myWidget.getCoord(pos.x(), pos.y(),
-                             event.pos().x(), event.pos().y() - self.titleBarHeight*2)
+                             event.pos().x(), event.pos().y()) #event.pos().y() - self.titleBarHeight*2
         curLat1, curLon1 = point.split(', ')
         print('click! 1:', " .2: ", curLat1, curLon1)
 
     def getCornersCoords(self):
+        self.window_height = self.size().height()
+        self.window_width = self.size().width()
+        print("1111111", Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
+        print("2222222", self.window_width, self.window_height)
         pos = self.myWidget.getCurrentLabelMapPos()
 
         self.coordsNW = self.myWidget.getCoord(pos.x(), pos.y(),
                              0, 0)
         self.coordsSW = self.myWidget.getCoord(pos.x(), pos.y(),
-                             0, Settings.DESCTOP_HEIGHT)
+                             0, self.window_height)
         self.coordsNE = self.myWidget.getCoord(pos.x(), pos.y(),
-                             Settings.DESCTOP_WIDHT, 0)
+                             self.window_width, 0)
         self.coordsSE = self.myWidget.getCoord(pos.x(), pos.y(),
-                             Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
-        #print("CORNERS", self.coordsNW, self.coordsSW, self.coordsNE, self.coordsSE)
+                             self.window_width, self.window_height)
+        print("CORNERS", self.coordsSW)
 
     def checkSettings(self):
         self.lineEditDebug.setText("")
@@ -1174,29 +1233,28 @@ class MainWindow(QMainWindow):
         self.circles.update()
 
     def zoomMinus(self):
-        current_scale = self.scale.value()
-        if current_scale < Settings.MASHTAB_MAX:
-            self.scale.setValue(current_scale + 1)
+        if self.current_scale < Settings.MASHTAB_MAX:
+            self.current_scale = self.current_scale + 1
+            Settings.CURRENT_MASHTAB + 1
+            self.updateScale()
 
     def zoomPlus(self):
-        current_scale = self.scale.value()
-        if current_scale > Settings.MASHTAB_MIN:
-            self.scale.setValue(current_scale - 1)
+        if self.current_scale > Settings.MASHTAB_MIN:
+            self.current_scale = self.current_scale - 1
+            Settings.CURRENT_MASHTAB - 1
+            self.updateScale()
 
     def updateScale(self):
-        current_scale = self.scale.value()
+        print("current_scale", self.current_scale)
         self.gridWidget.zoom_grid()
         self.gridW.zoom_grid()
-        self.myWidget.updateScale(current_scale)
-        strStatus = str(Settings().getGridScale()) + 'm, Grid=' + str(Settings().getScale())
+        self.myWidget.updateScale(self.current_scale)
         self.showStatusBarMessage()
         self.plot()
         #self.statusBar.showMessage(strStatus)
 
     def showStatusBarMessage(self):
         pass
-        #message = "scale: {}m, grid: {}, radius: {}".format(Settings().getGridScale(), Settings().getScale(), Settings.FISHING_SIRCLE_RADIUS)
-        #self.statusBar.showMessage(message)
 
     def createGrid(self):
         self.gridW.createGrid()
@@ -1234,14 +1292,10 @@ class MainWindow(QMainWindow):
                     print("3.1 waitingSerial conn True")
                     rdy = self.serial.readyRead.connect(self.onRead)
                     print("3.2 waitingSerial conn True", rdy)
-                    self.comConnectAction.setIcon(QIcon('icons/com_port_ok.png'))
-                    self.comConnectAction.setText('Disconnect...')
                 else:
                     print("3.3 waitingSerial conn not true")
             elif self.serial.isOpen() == True:
                 self.serial.close()
-                self.comConnectAction.setIcon(QIcon('icons/com_port.png'))
-                self.comConnectAction.setText('Connect...')
         except Exception as e:
             print(e, ' waitingSerial')
 
@@ -1279,9 +1333,9 @@ class MainWindow(QMainWindow):
         data = str.split(',')
         if (len(data) == 7):
             strDepth = data[3]
-            depth = float(strDepth)
+            depth = round(float(strDepth), 1)
             try:
-                self.LCDdepth.display(depth)
+                self.labelDepth.setText("{}".format(depth))
             except Exception as e:
                 print(e, ' parsingDepthData')
         else:
@@ -1296,7 +1350,7 @@ class MainWindow(QMainWindow):
                     tim = currentTime.split('.')
                     time = tim[0]
                     timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
-                    self.LCDtime.display(timeNorm.strftime('%H:%M'))
+                    #self.LCDtime.display(timeNorm.strftime('%H:%M'))
                     currentDate = data[9]
                     course = int(data[8])
                     Lat = data[3]
@@ -1309,8 +1363,9 @@ class MainWindow(QMainWindow):
                     LonDEC = self.NMEA2decimal(Lon, LonSign)
                     #print(LatDEC, LonDEC)
                     if course in range(0, 360):
-                        self.LCDcourse.display(int(course))
-                    self.LCDspeed.display(speed)
+                        pass
+                        #self.LCDcourse.display(int(course))
+                    #self.LCDspeed.display(speed)
                     ship_coords = self.myWidget.getPointByCoordsCorner(LatDEC, LonDEC)
                     new_x, new_y = ship_coords
                     self.shipWidget.moveLabelShip(new_x, new_y, int(course))
