@@ -889,61 +889,9 @@ class MainWindow(QMainWindow):
     coordsSE = None
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        print("main window: self.size:", self.size())
+        self.main_window_height = app.primaryScreen().size().height()
+        self.main_window_width = app.primaryScreen().size().width()
         self.setWindowFlag(Qt.FramelessWindowHint)
-        '''
-        self.mainmenu = self.menuBar()
-        # File ->
-        self.menuFile = self.mainmenu.addMenu('File')
-        # File -> Open
-        self.menuOpen = self.menuFile.addMenu('Open...')
-        # File -> Open -> Open Map File
-        self.openMapFileAction = QAction(QIcon('icons/open.png'), 'Map File', self)
-        self.openMapFileAction.triggered.connect(self.createGrid)
-        self.menuOpenMap = self.menuOpen.addAction(self.openMapFileAction)
-        # File -> Open -> Open Depth File
-        self.openDepthFileAction = QAction(QIcon('icons/open.png'), 'Depth File', self)
-        self.openDepthFileAction.triggered.connect(self.getDepthMapFile)
-        self.menuOpenDepth = self.menuOpen.addAction(self.openDepthFileAction)
-        # File.Connect
-        self.comConnectAction = QAction(self)
-        self.comConnectAction.setText('Connect...')
-        self.comConnectAction.setIcon(QIcon('icons/com_port.png'))
-        self.comConnectAction.setShortcut('Ctrl+C')
-        self.comConnectAction.triggered.connect(self.waitingSerial)
-        self.menuFile.addAction(self.comConnectAction)
-        # File.Exit
-        self.exitAction = QAction(QIcon('icons/exit.png'), 'Exit', self)
-        self.exitAction.setShortcut('Ctrl+Q')
-        self.exitAction.triggered.connect(qApp.quit)
-        self.menuFile.addAction(self.exitAction)
-
-        # Settings ->
-        self.menuSettings = self.mainmenu.addMenu('Settings')
-        # Settings -> Add Grid
-        self.menuGridAction = QAction(QIcon('icons/grid.png'), 'Add Grid', self)
-        self.menuGridAction.triggered.connect(self.createGrid)
-        self.menuGrid = self.menuSettings.addAction(self.menuGridAction)
-        # Settings -> NMEA / COM
-        self.menuNMEAAction = QAction(QIcon('icons/nmea.png'), 'NMEA/COM', self)
-        self.menuNMEAAction.triggered.connect(self.openMNEAsettingsWindow)
-        self.menuNMEAAction.setShortcut('Ctrl+S')
-        self.menuNMEA = self.menuSettings.addAction(self.menuNMEAAction)
-
-        # Settings -> MAP
-        self.menuMAPAction = QAction(QIcon('icons/map_icon.png'), 'Map', self)
-        self.menuMAPAction.triggered.connect(self.openMAPsettingsWindow)
-        self.menuMAPAction.setShortcut('Ctrl+M')
-        self.menuMAP = self.menuSettings.addAction(self.menuMAPAction)
-'''
-        #self.toolbar = QToolBar()
-        #self.addToolBar(self.toolbar)
-        #self.toolbar.addAction(self.menuNMEAAction)
-
-        #self.toolbar.addAction(self.comConnectAction)
-        #self.toolbar.addAction(self.exitAction)
-        #self.toolbar = self.addToolBar('Exit')
-        print("RODMV", self.size().height())
         self.myWidget = Main()
         self.gridWidget = MapGrid()
         self.shipWidget = LabelMapShip()
@@ -997,23 +945,24 @@ class MainWindow(QMainWindow):
         self.serial = QSerialPort(self)
 
         self.buttonKeep = QPushButton(self)
-        self.buttonKeep.setGeometry(Settings.DESCTOP_WIDHT - 80, Settings.DESCTOP_HEIGHT - 80, 60, 60)
+        self.buttonKeep.setGeometry(self.main_window_width - 80, self.main_window_height - 80, 60, 60)
         self.buttonKeep.setIcon(QIcon('icons/target.png'))
         self.buttonKeep.setIconSize(QSize(40, 40))
         self.buttonKeep.clicked.connect(self.setCenterMoving)
 
         self.buttonZoomMinus = QPushButton(self)
-        self.buttonZoomMinus.setGeometry(int(Settings.DESCTOP_WIDHT/2),
-                                        int(Settings.DESCTOP_HEIGHT) - 5,
+        self.buttonZoomMinus.setGeometry(int(self.main_window_width/2),
+                                        int(self.main_window_height) - 5,
                                         50,
                                         50)
+        print("MW: zoom-", int(Settings.DESCTOP_HEIGHT), self.size().height(), app.primaryScreen().size().height())
         self.buttonZoomMinus.setText("-")
         self.buttonZoomMinus.setStyleSheet(styles.buttonZOOMminus)
         self.buttonZoomMinus.clicked.connect(self.zoomMinus)
 
         self.buttonZoomPlus = QPushButton(self)
-        self.buttonZoomPlus.setGeometry(int(Settings.DESCTOP_WIDHT/2 - 50),
-                                        int(Settings.DESCTOP_HEIGHT) - 5,
+        self.buttonZoomPlus.setGeometry(int(self.main_window_width/2 - 50),
+                                        int(self.main_window_height) - 5,
                                         50,
                                         50)
         self.buttonZoomPlus.setText("+")
@@ -1027,7 +976,6 @@ class MainWindow(QMainWindow):
         self.strData = ''
         self.dataStart = False
         self.keepCenter = False
-        print(self.frameGeometry().width(), self.frameGeometry().height())
 
         self.menu = QMenu(self)
         self.menu.setFixedWidth(170)
@@ -1063,7 +1011,7 @@ class MainWindow(QMainWindow):
         self.button.setMenu(self.menu)
         self.button.setPopupMode(QToolButton.InstantPopup)
         self.button.setText('Menu')
-        self.button.setGeometry(int(Settings.DESCTOP_WIDHT - 170), 0, 170, 60)
+        self.button.setGeometry(int(self.main_window_width - 170), 0, 170, 60)
         self.button.setStyleSheet(styles.menuButtonStyle)
 
         self.current_scale = Settings.DEFAULT_MASHTAB
