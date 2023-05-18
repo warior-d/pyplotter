@@ -952,7 +952,7 @@ class MainWindow(QMainWindow):
 
         self.buttonZoomMinus = QPushButton(self)
         self.buttonZoomMinus.setGeometry(int(self.main_window_width/2),
-                                        int(self.main_window_height) - 5,
+                                        int(self.main_window_height) - 50,
                                         50,
                                         50)
         print("MW: zoom-", int(Settings.DESCTOP_HEIGHT), self.size().height(), app.primaryScreen().size().height())
@@ -962,7 +962,7 @@ class MainWindow(QMainWindow):
 
         self.buttonZoomPlus = QPushButton(self)
         self.buttonZoomPlus.setGeometry(int(self.main_window_width/2 - 50),
-                                        int(self.main_window_height) - 5,
+                                        int(self.main_window_height) - 50,
                                         50,
                                         50)
         self.buttonZoomPlus.setText("+")
