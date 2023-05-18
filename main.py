@@ -19,6 +19,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime
+import time
 
 ############
 import pandas as pd
@@ -930,6 +931,7 @@ class MainWindow(QMainWindow):
             blurRadius=14.0,
             color = QColor("white"),
             offset = QtCore.QPointF(0.0, 0.0))
+
         self.labelLetterDepth = QLabel(self)
         self.labelLetterDepth.setGeometry(12, 20, 120, 20)
         self.labelLetterDepth.setText("DEPTH    M")
@@ -1031,6 +1033,8 @@ class MainWindow(QMainWindow):
             # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
             fileSourseName, fileSourseExtension = filename.split('.')
             Settings.FILE_DEPTH_NAME = filename
+
+            ########### ||||| вниз
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
             self.contour_data.head()
 
@@ -1043,22 +1047,18 @@ class MainWindow(QMainWindow):
                                                             lon_min,
                                                             lat_max,
                                                             lon_min)
-            print(real_distance_map_ver)
+
             real_distance_map_hor = distanceBetweenPointsMeters(lat_min,
                                                             lon_min,
                                                             lat_min,
                                                             lon_max)
-            print(real_distance_map_hor)
-            print(real_distance_map_hor / real_distance_map_ver)
-            self.maxDepth = ceil(self.contour_data['z'].max())
 
+            self.maxDepth = ceil(self.contour_data['z'].max())
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data.x.unique())
             self.Y_unique = np.sort(self.contour_data.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
 
-    def plot(self):
-        if Settings.FILE_DEPTH_NAME is not None:
             # TODO - как работать с CSV - может, его сбросить???
             # TODO - Ход конем!!! вся карта - картинка, лишь некая область - plot!
             # TODO - позамерять времена здесь!
@@ -1066,38 +1066,39 @@ class MainWindow(QMainWindow):
             # Initialize plot objects
             rcParams['toolbar'] = 'None'
             # rcParams['figure.figsize'] = 20, 10 # sets plot size
-            ax = self.figure.add_subplot(111)
+            self.ax = self.figure.add_subplot(111)
 
-            cmap = ListedColormap(Settings.PLOT_PALETTE["Base"])
-
-            depth_arr = []
+            self.cmap = ListedColormap(Settings.PLOT_PALETTE["Base"])
+            self.depth_arr = []
             for i in arange(0, self.maxDepth + 1, 1):
-                depth_arr.append(i)
-            levels = np.array(depth_arr)
-            cpf = ax.contourf(self.X, self.Y, self.Z,
+                self.depth_arr.append(i)
+            levels = np.array(self.depth_arr)
+            self.cpf = self.ax.contourf(self.X, self.Y, self.Z,
                               levels,
-                              cmap=cmap)
-            line_colors = ['black' for l in cpf.levels]
-
-            cp = ax.contour(self.X, self.Y, self.Z,
+                              cmap=self.cmap)
+            line_colors = ['black' for l in self.cpf.levels]
+            self.cp = self.ax.contour(self.X, self.Y, self.Z,
                             levels=levels,
                             colors=line_colors,
                             linewidths=0.3)
             clevels = []
-
             for i in range(0, self.maxDepth + 1, 1):
                 clevels.append(i)
-
-            ax.clabel(cp,
+            self.ax.clabel(self.cp,
                       fontsize=7,
                       colors=line_colors,
                       levels=clevels,
                       # inline=False,
                       inline_spacing=1
                       )
-            ax.set_position([0, 0, 1, 1])
+            self.ax.set_position([0, 0, 1, 1])
+            ########### ||||| вверх - МОЖНО ПЕРЕНЕСТИ В plot!
 
+
+    def plot(self):
+        if Settings.FILE_DEPTH_NAME is not None:
             self.getCornersCoords()
+            #print(" all - {}, 4-10 {}, 4-11 {}, 6-11 {}".format(tic11 - tic10, tic4 - tic10, tic11 - tic4, tic11 - tic6,))
             min_dolg = float(self.coordsNW.split(',')[1])
             max_dolg = float(self.coordsNE.split(',')[1])
             min_shir = float(self.coordsSW.split(',')[0])
@@ -1107,10 +1108,11 @@ class MainWindow(QMainWindow):
             central_lat = (min_shir + max_shir) / 2
             mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
             #print("mercator_aspect_ratio:", mercator_aspect_ratio)
-            ax.set_aspect(mercator_aspect_ratio)
+            self.ax.set_aspect(mercator_aspect_ratio)
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
             self.canvas.draw()
+
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -1144,8 +1146,10 @@ class MainWindow(QMainWindow):
             return
         # разница в передвижении:
         delta = event.pos() - self.mouse_old_pos
+        self.plot()
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
+
 
     def mouseDoubleClickEvent(self, event):
         #print("MOUSE MW:", event.pos())
