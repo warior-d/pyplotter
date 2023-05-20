@@ -1045,39 +1045,27 @@ class MainWindow(QMainWindow):
 
             ########### ||||| вниз
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
-            print("cont data", self.contour_data)
-            print("cont data", type(self.contour_data))
-            self.contour_data.head()
-            self.maxDepth = ceil(self.contour_data['z'].max())
-            self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
 
-            print("self.Z", self.Z.size)
-            self.X_unique = np.sort(self.contour_data.x.unique())
-            self.Y_unique = np.sort(self.contour_data.y.unique())
-            self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
-            print("X len: {}, Y len: {}, Z len: {}".format(len(self.X), len(self.Y), len(self.Z)))
 
+    def plot(self):
+        if Settings.FILE_DEPTH_NAME is not None:
+            tic1 = time.perf_counter()
+            self.figure.clear()
             self.getCornersCoords()
-            min_dolg = float(self.coordsNW.split(',')[1])
+            min_dolg = float(self.coordsNW.split(',')[1]) # 37.862728
             max_dolg = float(self.coordsNE.split(',')[1])
-            min_shir = float(self.coordsSW.split(',')[0])
+            min_shir = float(self.coordsSW.split(',')[0]) # 55.634530
             max_shir = float(self.coordsNW.split(',')[0])
-            idxStartX = (np.abs(self.X_unique - min_dolg)).argmin()
-            idxStopX = (np.abs(self.X_unique - max_dolg)).argmin()
-            self.XS = self.X_unique[idxStartX:idxStopX]
-            idxStartY = (np.abs(self.Y_unique - min_shir)).argmin()
-            idxStopY = (np.abs(self.Y_unique - max_shir)).argmin()
-            self.YS = self.Y_unique[idxStartY:idxStopY]
 
-            self.Z_unique = np.sort(self.contour_data.z.unique())
+            self.maxDepth = ceil(self.contour_data['z'].max())
 
-            self.Xx, self.Yy = np.meshgrid(self.XS, self.YS)
-            print("YS {} | XS {} |||| Xx len: {}, Yy len: {}, Z len: {}".format(len(self.XS),len(self.YS),len(self.Xx), len(self.Yy), len(self.Z)))
+            self.contour_data_fast = self.contour_data[(self.contour_data['x'] > min_dolg) & (self.contour_data['x'] < max_dolg) & (self.contour_data['y'] > min_shir) & (self.contour_data['y'] < max_shir)]
 
-
-            # TODO - как работать с CSV - может, его сбросить???
-            # TODO - Ход конем!!! вся карта - картинка, лишь некая область - plot!
-            # TODO - позамерять времена здесь!
+            self.Z = self.contour_data_fast.pivot_table(index='x', columns='y', values='z').T.values
+            self.X_unique = np.sort(self.contour_data_fast.x.unique())
+            print("self.X_unique", len(self.X_unique))
+            self.Y_unique = np.sort(self.contour_data_fast.y.unique())
+            self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
 
             # Initialize plot objects
             rcParams['toolbar'] = 'None'
@@ -1099,9 +1087,9 @@ class MainWindow(QMainWindow):
 
             # изолинии
             self.cp = self.ax.contour(self.X, self.Y, self.Z,
-                            levels=levels,
-                            colors=line_colors,
-                            linewidths=0.3)
+                                      levels=levels,
+                                      colors=line_colors,
+                                      linewidths=0.3)
 
             # количество градаций глубин для подписей
             clevels = []
@@ -1109,34 +1097,13 @@ class MainWindow(QMainWindow):
                 clevels.append(i)
 
             self.ax.clabel(self.cp,
-                      fontsize=7,
-                      colors=line_colors,
-                      levels=clevels,
-                      # inline=False,
-                      inline_spacing=1
-                      )
+                           fontsize=7,
+                           colors=line_colors,
+                           levels=clevels,
+                           # inline=False,
+                           inline_spacing=1
+                           )
             self.ax.set_position([0, 0, 1, 1])
-            ########### ||||| вверх - МОЖНО ПЕРЕНЕСТИ В plot!
-
-
-
-    def plot(self):
-        if Settings.FILE_DEPTH_NAME is not None:
-            self.getCornersCoords()
-            min_dolg = float(self.coordsNW.split(',')[1])
-            max_dolg = float(self.coordsNE.split(',')[1])
-            min_shir = float(self.coordsSW.split(',')[0])
-            max_shir = float(self.coordsNW.split(',')[0])
-
-
-
-            '''
-            # 55.63850458503025, 37.87495768957512
-            idxStart = (np.abs(self.X_unique - min_dolg)).argmin()
-            idxStop = (np.abs(self.X_unique - max_dolg)).argmin()
-            self.XS = self.X_unique[idxStart:idxStop]
-            print("ardg:", idxStart, idxStop)
-            '''
 
             central_lat = (min_shir + max_shir) / 2
             mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
@@ -1145,6 +1112,8 @@ class MainWindow(QMainWindow):
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
             self.canvas.draw()
+            tic2 = time.perf_counter()
+            print("ALL_TIME", tic2 - tic1)
 
 
     def mousePressEvent(self, event):
