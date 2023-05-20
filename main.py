@@ -3,7 +3,7 @@
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
-    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton
+    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -138,7 +138,13 @@ class Settings():
                                "#ccffb2", "#b2ffcc", "#99ffe5", "#7fffff", "#7fe5ff", "#7fccff", "#7fb2ff", "#7f99ff", "#7f7fff", "#7f7fe5", "#7f7fcc"],
                     "Water": ["#A9D6E5", "#89C2D9", "#61A5C2", "#468FAF", "#2C7DA0", "#2A6F97", "#014F86", "#01497C", "#013A63", "#012A4A", "#01243E"]
                     }
+    CURRENT_PALETTE = "Base"
     DEBUG_INFO = False
+    ALPHA_CONTOUR = 1
+    ALPHA_CONTOURS = ["1", "0.75", "0.5", "0.25"]
+    FREQUENCIES_LINES = ["1", "0.5", "0.25"]
+    CURRENT_FREQUENCY_LINES = 1
+
 
 
     # установка текущего масштаба (1 - 9)
@@ -371,7 +377,6 @@ class GridWidget(QWidget):
         screen_height = QApplication.instance().desktop().availableGeometry().height()
         Settings.DESCTOP_WIDHT = screen_width
         Settings.DESCTOP_HEIGHT = screen_height
-        print("RODY", self.size().height())
         self.setGeometry(0, 0, screen_width, screen_height)
         self.IsModyfied = True
         self.posLabelMap = QPoint(Settings.POS_X, Settings.POS_Y)
@@ -512,9 +517,6 @@ class Main(QWidget):
 
     def __init__(self):
         super().__init__()
-        print("widget: self.size:", self.size())
-        print("widget: availableGeometry1:", QApplication.instance().desktop().availableGeometry())
-        self.printSize()
         screen_width = QApplication.instance().desktop().availableGeometry().width()
         screen_height = QApplication.instance().desktop().availableGeometry().height()
         Settings.DESCTOP_WIDHT = screen_width
@@ -551,8 +553,6 @@ class Main(QWidget):
         # И отобразим на карте!
         # TODO : возможно, ресайзить нужно backgroung...
 
-    def printSize(self):
-        print("widget: availableGeometry2:", QApplication.instance().desktop().availableGeometry())
 
     def mousePressEvent(self, event):
         print("position global widget = ", event.globalPos())
@@ -843,9 +843,19 @@ class Login(QDialog):
         Settings.DESCTOP_HEIGHT = screen_height
         print(Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
         super(Login, self).__init__(parent)
-        self.buttonLogin = QPushButton('Get Map Image', self)
-
+        self.setWindowTitle("Image Map")
+        self.setFixedWidth(250)
+        self.setFixedHeight(400)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet('background-color: white;')
+        self.buttonLogin = QPushButton('', self)
+        self.buttonLogin.setIcon(QIcon('icons/map.png'))
+        self.buttonLogin.setIconSize(QSize(114, 162))
+        self.buttonLogin.setFixedSize(114, 162)
         self.buttonLogin.clicked.connect(self.handleLogin)
+        self.labelChose = QLabel(self)
+        self.labelChose.setGeometry(80, 320, 180, 300)
+        self.labelChose.setText("Chose Map")
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
 
@@ -946,11 +956,6 @@ class MainWindow(QMainWindow):
 
         self.serial = QSerialPort(self)
 
-        self.buttonKeep = QPushButton(self)
-        self.buttonKeep.setGeometry(self.main_window_width - 80, self.main_window_height - 80, 60, 60)
-        self.buttonKeep.setIcon(QIcon('icons/target.png'))
-        self.buttonKeep.setIconSize(QSize(40, 40))
-        self.buttonKeep.clicked.connect(self.setCenterMoving)
 
         self.buton_size = 40
         self.buttonZoomMinus = QPushButton(self)
@@ -958,7 +963,6 @@ class MainWindow(QMainWindow):
                                         int(self.main_window_height) - self.buton_size,
                                         self.buton_size,
                                         self.buton_size)
-        print("MW: zoom-", int(Settings.DESCTOP_HEIGHT), self.size().height(), app.primaryScreen().size().height())
         self.buttonZoomMinus.setText("-")
         self.buttonZoomMinus.setStyleSheet(styles.buttonZOOMminus)
         self.buttonZoomMinus.clicked.connect(self.zoomMinus)
@@ -980,8 +984,10 @@ class MainWindow(QMainWindow):
         self.dataStart = False
         self.keepCenter = False
 
+        menu_button_width = 150
+
         self.menu = QMenu(self)
-        self.menu.setFixedWidth(170)
+        self.menu.setFixedWidth(menu_button_width)
         self.menu.setStyleSheet(styles.menuStyle)
 
         self.subMenuSettings = self.menu.addMenu('Settings')
@@ -1014,7 +1020,7 @@ class MainWindow(QMainWindow):
         self.button.setMenu(self.menu)
         self.button.setPopupMode(QToolButton.InstantPopup)
         self.button.setText('Menu')
-        self.button.setGeometry(int(self.main_window_width - 170), 0, 170, 60)
+        self.button.setGeometry(int(self.main_window_width - menu_button_width), 0, menu_button_width, 60)
         self.button.setStyleSheet(styles.menuButtonStyle)
 
         self.current_scale = Settings.DEFAULT_MASHTAB
@@ -1022,9 +1028,11 @@ class MainWindow(QMainWindow):
 
 
     def getDepthMapFile(self):
+        self.figure.clear()
         Settings.FILE_DEPTH_NAME = None
         file_name, _ = QFileDialog.getOpenFileName(
             self, 'Depth Data', r"", "CSV(*.csv);;All Files(*.*)")
+
         if file_name:
             # распарсим на ФАЙЛ и ПУТЬ
             filename = Path(file_name).name
@@ -1033,57 +1041,73 @@ class MainWindow(QMainWindow):
             # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
             fileSourseName, fileSourseExtension = filename.split('.')
             Settings.FILE_DEPTH_NAME = filename
+            print(filename)
 
             ########### ||||| вниз
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
+            print("cont data", self.contour_data)
+            print("cont data", type(self.contour_data))
             self.contour_data.head()
-
-            lat_max = self.contour_data['y'].max()
-            lat_min = self.contour_data['y'].min()
-            lon_max = self.contour_data['x'].max()
-            lon_min = self.contour_data['x'].min()
-
-            real_distance_map_ver = distanceBetweenPointsMeters(lat_min,
-                                                            lon_min,
-                                                            lat_max,
-                                                            lon_min)
-
-            real_distance_map_hor = distanceBetweenPointsMeters(lat_min,
-                                                            lon_min,
-                                                            lat_min,
-                                                            lon_max)
-
             self.maxDepth = ceil(self.contour_data['z'].max())
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
+
+            print("self.Z", self.Z.size)
             self.X_unique = np.sort(self.contour_data.x.unique())
             self.Y_unique = np.sort(self.contour_data.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
+            print("X len: {}, Y len: {}, Z len: {}".format(len(self.X), len(self.Y), len(self.Z)))
+
+            self.getCornersCoords()
+            min_dolg = float(self.coordsNW.split(',')[1])
+            max_dolg = float(self.coordsNE.split(',')[1])
+            min_shir = float(self.coordsSW.split(',')[0])
+            max_shir = float(self.coordsNW.split(',')[0])
+            idxStartX = (np.abs(self.X_unique - min_dolg)).argmin()
+            idxStopX = (np.abs(self.X_unique - max_dolg)).argmin()
+            self.XS = self.X_unique[idxStartX:idxStopX]
+            idxStartY = (np.abs(self.Y_unique - min_shir)).argmin()
+            idxStopY = (np.abs(self.Y_unique - max_shir)).argmin()
+            self.YS = self.Y_unique[idxStartY:idxStopY]
+
+            self.Z_unique = np.sort(self.contour_data.z.unique())
+
+            self.Xx, self.Yy = np.meshgrid(self.XS, self.YS)
+            print("YS {} | XS {} |||| Xx len: {}, Yy len: {}, Z len: {}".format(len(self.XS),len(self.YS),len(self.Xx), len(self.Yy), len(self.Z)))
+
 
             # TODO - как работать с CSV - может, его сбросить???
             # TODO - Ход конем!!! вся карта - картинка, лишь некая область - plot!
             # TODO - позамерять времена здесь!
-            self.figure.clear()
+
             # Initialize plot objects
             rcParams['toolbar'] = 'None'
             # rcParams['figure.figsize'] = 20, 10 # sets plot size
             self.ax = self.figure.add_subplot(111)
 
-            self.cmap = ListedColormap(Settings.PLOT_PALETTE["Base"])
+            self.cmap = ListedColormap(Settings.PLOT_PALETTE[Settings.CURRENT_PALETTE])
             self.depth_arr = []
-            for i in arange(0, self.maxDepth + 1, 1):
+
+            for i in arange(0, self.maxDepth + 1, float(Settings.CURRENT_FREQUENCY_LINES)):
                 self.depth_arr.append(i)
             levels = np.array(self.depth_arr)
-            self.cpf = self.ax.contourf(self.X, self.Y, self.Z,
-                              levels,
-                              cmap=self.cmap)
+
+            # нарисовать и заполнить контуры
+            self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,
+                                        cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
+
             line_colors = ['black' for l in self.cpf.levels]
+
+            # изолинии
             self.cp = self.ax.contour(self.X, self.Y, self.Z,
                             levels=levels,
                             colors=line_colors,
                             linewidths=0.3)
+
+            # количество градаций глубин для подписей
             clevels = []
             for i in range(0, self.maxDepth + 1, 1):
                 clevels.append(i)
+
             self.ax.clabel(self.cp,
                       fontsize=7,
                       colors=line_colors,
@@ -1095,19 +1119,28 @@ class MainWindow(QMainWindow):
             ########### ||||| вверх - МОЖНО ПЕРЕНЕСТИ В plot!
 
 
+
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
             self.getCornersCoords()
-            #print(" all - {}, 4-10 {}, 4-11 {}, 6-11 {}".format(tic11 - tic10, tic4 - tic10, tic11 - tic4, tic11 - tic6,))
             min_dolg = float(self.coordsNW.split(',')[1])
             max_dolg = float(self.coordsNE.split(',')[1])
             min_shir = float(self.coordsSW.split(',')[0])
             max_shir = float(self.coordsNW.split(',')[0])
+
+
+
+            '''
             # 55.63850458503025, 37.87495768957512
-            # TODO - а у пацана верно было.. Считать +- N км от центральной точки
+            idxStart = (np.abs(self.X_unique - min_dolg)).argmin()
+            idxStop = (np.abs(self.X_unique - max_dolg)).argmin()
+            self.XS = self.X_unique[idxStart:idxStop]
+            print("ardg:", idxStart, idxStop)
+            '''
+
             central_lat = (min_shir + max_shir) / 2
             mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
-            #print("mercator_aspect_ratio:", mercator_aspect_ratio)
+
             self.ax.set_aspect(mercator_aspect_ratio)
             plt.axis([min_dolg, max_dolg, min_shir, max_shir])
             plt.axis('off')
@@ -1144,9 +1177,9 @@ class MainWindow(QMainWindow):
 
         if not self.mouse_old_pos:
             return
-        # разница в передвижении:
         delta = event.pos() - self.mouse_old_pos
-        self.plot()
+        # TODO - конечно, это сильно спорно...
+        #self.plot()
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
 
@@ -1195,7 +1228,6 @@ class MainWindow(QMainWindow):
             self.updateScale()
 
     def updateScale(self):
-        print("current_scale", self.current_scale)
         self.gridWidget.zoom_grid()
         self.gridW.zoom_grid()
         self.myWidget.updateScale(self.current_scale)
@@ -1209,6 +1241,7 @@ class MainWindow(QMainWindow):
     def createGrid(self):
         self.gridW.createGrid()
 
+    '''
     def setCenterMoving(self):
         if self.keepCenter == False:
             self.keepCenter = True
@@ -1218,6 +1251,7 @@ class MainWindow(QMainWindow):
             self.buttonKeep.setIcon(QIcon('icons/target.png'))
             self.keepCenter = False
             self.myWidget.setMovingCenter()
+    '''
 
     def openMNEAsettingsWindow(self):
         dialog = SettingsDialog(self)
@@ -1425,6 +1459,30 @@ class SettingsMap(QDialog):
         self.buttonColor.move(70, self.base_y + 115)
         self.buttonColor.clicked.connect(self.colorDialog)
 
+        self.labelPalette = QLabel(self)
+        self.labelPalette.setText('Palette:')
+        self.labelPalette.move(5, self.base_y + 160)
+
+        self.comboPalettes = QComboBox(self)
+        self.comboPalettes.addItems(list(Settings.PLOT_PALETTE.keys()))
+        self.comboPalettes.move(70, self.base_y + 155)
+
+        self.labelAlphaContour = QLabel(self)
+        self.labelAlphaContour.setText('Alpha contour:')
+        self.labelAlphaContour.move(5, self.base_y + 200)
+
+        self.comboAlphaContour = QComboBox(self)
+        self.comboAlphaContour.addItems(Settings.ALPHA_CONTOURS)
+        self.comboAlphaContour.move(70, self.base_y + 195)
+
+        self.labelFreqLines = QLabel(self)
+        self.labelFreqLines.setText('Freq lines:')
+        self.labelFreqLines.move(5, self.base_y + 240)
+
+        self.comboFreqLines = QComboBox(self)
+        self.comboFreqLines.addItems(Settings.FREQUENCIES_LINES)
+        self.comboFreqLines.move(70, self.base_y + 235)
+
         self.buttonOK = QPushButton(self)
         self.buttonOK.setText("OK")
         self.buttonOK.move(250, 350)
@@ -1464,6 +1522,9 @@ class SettingsMap(QDialog):
         else:
             Settings.NEED_RADIUS_VECTOR = False
 
+        Settings.CURRENT_PALETTE = self.comboPalettes.currentText()
+        Settings.ALPHA_CONTOUR = float(self.comboAlphaContour.currentText())
+        Settings.CURRENT_FREQUENCY_LINES = float(self.comboFreqLines.currentText())
         self.mainWindow.checkSettings()
         self.accept()
 
