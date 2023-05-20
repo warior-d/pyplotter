@@ -1058,13 +1058,19 @@ class MainWindow(QMainWindow):
             max_shir = float(self.coordsNW.split(',')[0])
 
             self.maxDepth = ceil(self.contour_data['z'].max())
-
-            self.contour_data_fast = self.contour_data[(self.contour_data['x'] > min_dolg) & (self.contour_data['x'] < max_dolg) & (self.contour_data['y'] > min_shir) & (self.contour_data['y'] < max_shir)]
-
+            '''
+            self.contour_data_fast = self.contour_data[(self.contour_data['x'] >= min_dolg) & (self.contour_data['x'] <= max_dolg) & (self.contour_data['y'] >= min_shir) & (self.contour_data['y'] <= max_shir)]
             self.Z = self.contour_data_fast.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data_fast.x.unique())
-            print("self.X_unique", len(self.X_unique))
+            #print("self.X_unique", len(self.X_unique))
             self.Y_unique = np.sort(self.contour_data_fast.y.unique())
+            self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
+            '''
+
+            self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
+            self.X_unique = np.sort(self.contour_data.x.unique())
+            #print("self.X_unique", len(self.X_unique))
+            self.Y_unique = np.sort(self.contour_data.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
 
             # Initialize plot objects
@@ -1080,10 +1086,10 @@ class MainWindow(QMainWindow):
             levels = np.array(self.depth_arr)
 
             # нарисовать и заполнить контуры
-            self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,
-                                        cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
 
-            line_colors = ['black' for l in self.cpf.levels]
+            self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,  cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
+            line_colors = ['black' for line in self.cpf.levels]
+
 
             # изолинии
             self.cp = self.ax.contour(self.X, self.Y, self.Z,
@@ -1093,16 +1099,19 @@ class MainWindow(QMainWindow):
 
             # количество градаций глубин для подписей
             clevels = []
-            for i in range(0, self.maxDepth + 1, 1):
+            for i in arange(0, self.maxDepth + 1, 1):
                 clevels.append(i)
 
+            # подписи линий
             self.ax.clabel(self.cp,
                            fontsize=7,
-                           colors=line_colors,
+                           colors= 'black', #line_colors,
                            levels=clevels,
                            # inline=False,
-                           inline_spacing=1
+                           inline_spacing=2,
+                           #manual=True
                            )
+
             self.ax.set_position([0, 0, 1, 1])
 
             central_lat = (min_shir + max_shir) / 2
@@ -1143,6 +1152,7 @@ class MainWindow(QMainWindow):
         self.gridW.setCurrentMapPosition(self.myWidget.getLabelMapPosition())
         self.gridW.setModyfyed()
         self.gridW.update()
+        #self.plot()
 
         if not self.mouse_old_pos:
             return
