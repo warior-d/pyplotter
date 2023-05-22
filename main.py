@@ -1098,7 +1098,56 @@ class MainWindow(QMainWindow):
         self.button.setStyleSheet(styles.menuButtonStyle)
 
         self.current_scale = Settings.DEFAULT_MASHTAB
+        self.ship_speed = 0.0
 
+        lblInfoH = 30
+        lblInfoW = 210
+        #        self.main_window_width
+        #        self.main_window_height
+
+        self.labelInfoSOG = QLabel(self)
+        self.labelInfoSOG.setStyleSheet(styles.labelInfoTop)
+        self.labelInfoSOG.setGeometry(0, self.main_window_height - 3*lblInfoH, lblInfoW, lblInfoH)
+
+        self.labelInfoSCALE = QLabel(self)
+        self.labelInfoSCALE.setStyleSheet(styles.labelInfo)
+        self.labelInfoSCALE.setGeometry(0, self.main_window_height - 2*lblInfoH, lblInfoW, lblInfoH)
+
+        self.labelInfoDISTANCE = QLabel(self)
+        self.labelInfoDISTANCE.setStyleSheet(styles.labelInfo)
+        self.labelInfoDISTANCE.setGeometry(0, self.main_window_height - lblInfoH, lblInfoW, lblInfoH)
+        self.updateInfoLabels()
+        self.currentDate = ''
+        self.logDataBool = True
+        self.loggingData(1,2,3)
+        self.logList = []
+
+    def loggingData(self, lat, lon, depth):
+        if self.logDataBool:
+            print(os.path.isdir('logs'))
+            if self.currentDate != '':
+                log_filename = str(self.currentDate) + '.csv'
+                if os.path.exists(os.path.join(os.getcwd(), 'logs', log_filename)) == False:
+                    print("NO", os.path.join(os.getcwd(), 'logs', log_filename))
+                    fp = open(os.path.join(os.getcwd(), 'logs', log_filename), 'x')
+                    fp.close()
+                else:
+                    print(len(self.logList))
+                    if len(self.logList) <= 10:
+                        cur_list = [lat, lon, depth]
+                        self.logList.append(cur_list)
+                        print(self.logList)
+                    else:
+                        pass
+
+
+
+
+
+    def updateInfoLabels(self):
+        self.labelInfoSCALE.setText("Scale     {}m".format(str(int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]))))
+        self.labelInfoSOG.setText("SOG     {} km/h".format(str(round(self.ship_speed, 2))))
+        self.labelInfoDISTANCE.setText("Distance     {}m".format(str(130)))
 
 
     def getDepthMapFile(self):
@@ -1321,6 +1370,7 @@ class MainWindow(QMainWindow):
         self.myWidget.updateScale(self.current_scale)
         self.showStatusBarMessage()
         self.plot()
+        self.updateInfoLabels()
         #self.statusBar.showMessage(strStatus)
 
     def showStatusBarMessage(self):
@@ -1421,16 +1471,17 @@ class MainWindow(QMainWindow):
                     currentTime = data[1]
                     tim = currentTime.split('.')
                     time = tim[0]
+                    print(data)
                     timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
                     #self.LCDtime.display(timeNorm.strftime('%H:%M'))
-                    currentDate = data[9]
+                    self.currentDate = data[9]
                     course = int(data[8])
                     Lat = data[3]
                     LatSign = data[4]
                     Lon = data[5]
                     LonSign = data[6]
                     strSpeed = data[7]
-                    speed = float(data[7]) * 1.85
+                    self.ship_speed = float(data[7]) * 1.85
                     LatDEC = self.NMEA2decimal(Lat, LatSign)
                     LonDEC = self.NMEA2decimal(Lon, LonSign)
                     #print(LatDEC, LonDEC)
@@ -1442,6 +1493,8 @@ class MainWindow(QMainWindow):
                     new_x, new_y = ship_coords
                     self.shipWidget.moveLabelShip(new_x, new_y, int(course))
                     self.circles.setShipPosition(new_x, new_y, int(course))
+                    self.updateInfoLabels()
+                    self.loggingData(LatDEC, LonDEC, strSpeed)
                     #self.shipWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
                 else:
                     now = QTime.currentTime()
