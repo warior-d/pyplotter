@@ -911,7 +911,7 @@ class MainWindow(QMainWindow):
         self.whiteBack = WhiteBack()
 
         #####
-        self.figure = plt.figure()
+        self.figure = plt.figure(clear=True)
         self.figure.set_alpha(0)
         self.figure.patch.set_facecolor("None")
         self.canvas = FigureCanvas(self.figure)
@@ -1029,6 +1029,7 @@ class MainWindow(QMainWindow):
 
     def getDepthMapFile(self):
         self.figure.clear()
+        self.figure.clf()
         Settings.FILE_DEPTH_NAME = None
         file_name, _ = QFileDialog.getOpenFileName(
             self, 'Depth Data', r"", "CSV(*.csv);;All Files(*.*)")
@@ -1041,86 +1042,120 @@ class MainWindow(QMainWindow):
             # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
             fileSourseName, fileSourseExtension = filename.split('.')
             Settings.FILE_DEPTH_NAME = filename
-            print(filename)
 
             ########### ||||| вниз
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])
+            print(type(self.contour_data))
 
+            # Максимальные координаты карты глубин
+            self.contour_max_x = self.contour_data['x'][np.argmax(self.contour_data['x'])]
+            self.contour_min_x = self.contour_data['x'][np.argmin(self.contour_data['x'])]
+            self.contour_max_y = self.contour_data['y'][np.argmax(self.contour_data['y'])]
+            self.contour_min_y = self.contour_data['y'][np.argmin(self.contour_data['y'])]
+            print(self.contour_max_x, self.contour_min_x, self.contour_max_y, self.contour_min_y)
 
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
             tic1 = time.perf_counter()
+            print("clear!")
             self.figure.clear()
+            #TODO - спорно... вообще тут разобраться...
+            self.figure.clf()
             self.getCornersCoords()
+
             min_dolg = float(self.coordsNW.split(',')[1]) # 37.862728
             max_dolg = float(self.coordsNE.split(',')[1])
             min_shir = float(self.coordsSW.split(',')[0]) # 55.634530
             max_shir = float(self.coordsNW.split(',')[0])
 
             self.maxDepth = ceil(self.contour_data['z'].max())
-            '''
-            self.contour_data_fast = self.contour_data[(self.contour_data['x'] >= min_dolg) & (self.contour_data['x'] <= max_dolg) & (self.contour_data['y'] >= min_shir) & (self.contour_data['y'] <= max_shir)]
+
+
+            ind_min_x = np.where( (self.contour_data['x'] - min_dolg) <= 0,
+                                 (self.contour_data['x'] - min_dolg) , -np.inf).argmax()
+            ind_max_x = np.where( (self.contour_data['x'] - max_dolg) >= 0,
+                                  (self.contour_data['x'] - max_dolg), np.inf).argmin()
+            min_x = self.contour_data['x'][ind_min_x] if self.contour_min_x <= min_dolg else self.contour_min_x
+            max_x = self.contour_data['x'][ind_max_x] if self.contour_max_x >= max_dolg else self.contour_max_x
+
+
+            ind_min_y = np.where( (self.contour_data['y'] - min_shir) <= 0,
+                                (self.contour_data['y'] - min_shir) , -np.inf).argmax()
+
+            ind_max_y = np.where( (self.contour_data['y'] - max_shir) >= 0,
+                                (self.contour_data['y'] - max_shir), np.inf).argmin()
+
+            min_y = self.contour_data['y'][ind_min_y] if self.contour_min_y <= min_shir else self.contour_min_y
+            max_y = self.contour_data['y'][ind_max_y] if self.contour_max_y >= max_shir else self.contour_max_y
+
+            self.contour_data_fast = self.contour_data[(self.contour_data['x'] >= min_x) &
+                                                       (self.contour_data['x'] <= max_x) &
+                                                       (self.contour_data['y'] >= min_y) &
+                                                       (self.contour_data['y'] <= max_y)]
+
+
             self.Z = self.contour_data_fast.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data_fast.x.unique())
-            #print("self.X_unique", len(self.X_unique))
             self.Y_unique = np.sort(self.contour_data_fast.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
             '''
-
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data.x.unique())
-            #print("self.X_unique", len(self.X_unique))
             self.Y_unique = np.sort(self.contour_data.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
-
-            # Initialize plot objects
+            '''
             rcParams['toolbar'] = 'None'
-            # rcParams['figure.figsize'] = 20, 10 # sets plot size
-            self.ax = self.figure.add_subplot(111)
+            print("self.Z", self.Z.size)
+            if self.Z.size > 20:
 
-            self.cmap = ListedColormap(Settings.PLOT_PALETTE[Settings.CURRENT_PALETTE])
-            self.depth_arr = []
+                # rcParams['figure.figsize'] = 20, 10 # sets plot size
+                self.ax = self.figure.add_subplot(111)
 
-            for i in arange(0, self.maxDepth + 1, float(Settings.CURRENT_FREQUENCY_LINES)):
-                self.depth_arr.append(i)
-            levels = np.array(self.depth_arr)
+                self.cmap = ListedColormap(Settings.PLOT_PALETTE[Settings.CURRENT_PALETTE])
+                self.depth_arr = []
 
-            # нарисовать и заполнить контуры
+                for i in arange(0, self.maxDepth + 1, float(Settings.CURRENT_FREQUENCY_LINES)):
+                    self.depth_arr.append(i)
+                levels = np.array(self.depth_arr)
 
-            self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,  cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
-            line_colors = ['black' for line in self.cpf.levels]
+                # нарисовать и заполнить контуры
 
+                self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,  cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
+                line_colors = ['black' for line in self.cpf.levels]
 
-            # изолинии
-            self.cp = self.ax.contour(self.X, self.Y, self.Z,
-                                      levels=levels,
-                                      colors=line_colors,
-                                      linewidths=0.3)
+                # изолинии
+                self.cp = self.ax.contour(self.X, self.Y, self.Z,
+                                          levels=levels,
+                                          colors=line_colors,
+                                          linewidths=0.3)
 
-            # количество градаций глубин для подписей
-            clevels = []
-            for i in arange(0, self.maxDepth + 1, 1):
-                clevels.append(i)
+                # количество градаций глубин для подписей
+                clevels = []
+                for i in arange(0, self.maxDepth + 1, 1):
+                    clevels.append(i)
 
-            # подписи линий
-            self.ax.clabel(self.cp,
-                           fontsize=7,
-                           colors= 'black', #line_colors,
-                           levels=clevels,
-                           # inline=False,
-                           inline_spacing=2,
-                           #manual=True
-                           )
+                # подписи линий
+                self.ax.clabel(self.cp,
+                               fontsize=7,
+                               colors= 'black', #line_colors,
+                               levels=clevels,
+                               # inline=False,
+                               inline_spacing=2,
+                               #manual=True
+                               )
 
-            self.ax.set_position([0, 0, 1, 1])
+                self.ax.set_position([0, 0, 1, 1])
 
-            central_lat = (min_shir + max_shir) / 2
-            mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
+                central_lat = (min_shir + max_shir) / 2
+                mercator_aspect_ratio = 1 / cos(radians(central_lat)) #central_lat
 
-            self.ax.set_aspect(mercator_aspect_ratio)
-            plt.axis([min_dolg, max_dolg, min_shir, max_shir])
-            plt.axis('off')
-            self.canvas.draw()
+                self.ax.set_aspect(mercator_aspect_ratio)
+                plt.axis([min_dolg, max_dolg, min_shir, max_shir])
+                plt.axis('off')
+                self.canvas.draw()
+            else:
+                self.figure.clear()
+                self.canvas.draw()
             tic2 = time.perf_counter()
             print("ALL_TIME", tic2 - tic1)
 
