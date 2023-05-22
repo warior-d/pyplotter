@@ -15,7 +15,7 @@ from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
 from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont, QImage
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime
@@ -33,8 +33,8 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.figure import Figure
 #############
 import stylescss as styles
-
-
+from PIL import Image, ImageOps, ImageFilter
+from PIL.ImageQt import ImageQt
 
 def getCoordsFromKML(kmlfile):
     tree = ET.parse(kmlfile)
@@ -524,7 +524,6 @@ class Main(QWidget):
         #тут хранятся ТЕКУЩИЕ центральные координаты
         self.newCentr = ''
         self.setGeometry(0, 0, screen_width, screen_height)
-        self.pixmapMap = QPixmap(Settings.FILE_NAME)
         # в самом начале установим координаты центральной точки в 0 - 0
         Settings.CENTR_LAT = 0
         Settings.CENTR_LON = 0
@@ -536,7 +535,17 @@ class Main(QWidget):
         self.labelMap = QLabel(self)
         self.labelMap.move(350, 210)
         self.updateCentrPoint()
+
+        #########
+        #########
+        self.labelPillowMap = QLabel(self)
+        #self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: black;')
+        self.labelPillowMap.move(350, 210)
+        #########
+        #########
+
         self.addImage()
+        #self.addImagePillow()
 
         # включим отслеживание мышки
         #self.setMouseTracking(True)
@@ -548,6 +557,7 @@ class Main(QWidget):
         self.centrPoint = QPoint()
         self.centrPoint.setX(int(Settings.DESCTOP_WIDHT / 2))
         self.centrPoint.setY(int(Settings.DESCTOP_HEIGHT / 2))
+
 
         # Определим РЕАЛЬНОЕ (по координатам) расстояние между точками из KML
         # И отобразим на карте!
@@ -690,6 +700,7 @@ class Main(QWidget):
     # TODO: добавить возможность передачи координаты для привязки сразу (в newWork есть идеи)
     def addImage(self):
         # первоначальное добавление картинки
+        self.pixmapMap = QPixmap(Settings.FILE_NAME)
         coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
         Settings.LAT_NW, Settings.LON_NW, Settings.LAT_SE, Settings.LON_SE = coordinatesFromFile['north'], \
                                                                              coordinatesFromFile['west'], \
@@ -704,13 +715,75 @@ class Main(QWidget):
         pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP
         lengh_pixels = (((y2 - y1) ** (2)) + ((x2 - x1) ** (2))) ** (0.5)
         lengh_meters = lengh_pixels * pixelLenght
-        koef = real_distance_map / lengh_meters
-        width_new = self.pixmapMap.width() * koef
-        height_new = self.pixmapMap.height() * koef
+        self.koef = real_distance_map / lengh_meters
+        width_new = self.pixmapMap.width() * self.koef
+        height_new = self.pixmapMap.height() * self.koef
 
         # TODO: сделать добавление, чтобы по координатам был (в центре экрана - нужная координата)
         self.labelMap.resize(int(width_new), int(height_new))
         self.labelMap.setPixmap(self.pixmapMap.scaled(int(width_new), int(height_new), Qt.KeepAspectRatio, Qt.FastTransformation))
+
+
+    def addImagePillow(self):
+        # первоначальное добавление картинки
+        self.pillImage = Image.open(Settings.FILE_NAME)
+        self.picture_width, self.picture_height = self.pillImage.size
+        coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
+        Settings.LAT_NW, Settings.LON_NW, Settings.LAT_SE, Settings.LON_SE = coordinatesFromFile['north'], \
+                                                                             coordinatesFromFile['west'], \
+                                                                             coordinatesFromFile['south'], \
+                                                                             coordinatesFromFile['east']
+        real_distance_map = distanceBetweenPointsMeters(Settings.LAT_NW,
+                                                        Settings.LON_NW,
+                                                        Settings.LAT_SE,
+                                                        Settings.LON_SE)
+        x1, y1 = self.labelMap.pos().x(), self.labelMap.pos().y()
+        x2, y2 = x1 + self.picture_width, y1 + self.picture_height
+        pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP
+        lengh_pixels = (((y2 - y1) ** (2)) + ((x2 - x1) ** (2))) ** (0.5)
+        lengh_meters = lengh_pixels * pixelLenght
+        self.koef = real_distance_map / lengh_meters
+        width_new = self.picture_width * self.koef
+        height_new = self.picture_height * self.koef
+
+        # TODO: сделать добавление, чтобы по координатам был (в центре экрана - нужная координата)
+        self.labelMap.resize(int(width_new), int(height_new))
+        self.pillowLabelMove()
+
+    def pillowLabelMove(self):
+
+        # пересечение экрана rect_screen и label_map в текущей позиции
+        # для фиксации размера labelPillowMap
+        rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, app.primaryScreen().size().height())
+        label_map_rect = QRect(self.labelMap.pos(), self.labelMap.size())
+
+        cross_reqt = rect_screen.intersected(label_map_rect)
+        cross_reqt_size = cross_reqt.getRect()
+        print("cross_reqt", cross_reqt, cross_reqt_size)
+        self.labelPillowMap.setGeometry(cross_reqt)
+        self.labelPillowMap.setAlignment(QtCore.Qt.AlignLeft)
+
+        if cross_reqt != QRect(0, 0, 0, 0):
+
+            print("labelMap", self.labelMap.pos(), self.labelMap.size())
+            width_new = int(self.picture_width * self.koef)
+            height_new = int(self.picture_height * self.koef)
+
+            pillImage_current = self.pillImage.resize((int(width_new), int(height_new)))
+
+            crop_list = (cross_reqt_size[0] - self.labelMap.pos().x(),
+                         cross_reqt_size[1] - self.labelMap.pos().y(),
+                         (cross_reqt_size[0] - self.labelMap.pos().x()) + cross_reqt_size[2],
+                         (cross_reqt_size[1] - self.labelMap.pos().y()) + cross_reqt_size[3]
+                         )
+            print(crop_list)
+            im = pillImage_current.crop(crop_list)
+            im = im.convert("RGBA")
+            qim = ImageQt(im)
+            pixmap = QPixmap(QImage(qim))
+            self.labelPillowMap.setPixmap(pixmap)
+
+
 
     def getLabelMapPosition(self):
         return self.labelMap.pos()
@@ -827,6 +900,7 @@ class Main(QWidget):
         new_pos_center = self.supposedCentr + delta
         self.newCentr = self.getCoordFromCentrPoint(new_pos_center.x(), new_pos_center.y(),
                                                int(Settings.DESCTOP_WIDHT / 2), int(Settings.DESCTOP_HEIGHT / 2))
+        #self.pillowLabelMove()
 
     def getCurrentLabelMapPos(self):
         return self.labelMap.pos()
