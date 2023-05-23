@@ -1118,30 +1118,32 @@ class MainWindow(QMainWindow):
         self.labelInfoDISTANCE.setGeometry(0, self.main_window_height - lblInfoH, lblInfoW, lblInfoH)
         self.updateInfoLabels()
         self.currentDate = ''
-        self.logDataBool = True
-        self.loggingData(1,2,3)
+        self.currentDepth = ''
+        self.logDataBool = False
         self.logList = []
+
 
     def loggingData(self, lat, lon, depth):
         if self.logDataBool:
-            print(os.path.isdir('logs'))
             if self.currentDate != '':
                 log_filename = str(self.currentDate) + '.csv'
                 if os.path.exists(os.path.join(os.getcwd(), 'logs', log_filename)) == False:
-                    print("NO", os.path.join(os.getcwd(), 'logs', log_filename))
                     fp = open(os.path.join(os.getcwd(), 'logs', log_filename), 'x')
                     fp.close()
                 else:
-                    print(len(self.logList))
                     if len(self.logList) <= 10:
-                        cur_list = [lat, lon, depth]
+                        cur_list = [str(lat), str(lon), str(depth)]
                         self.logList.append(cur_list)
-                        print(self.logList)
                     else:
-                        pass
-
-
-
+                        fw = open(os.path.join(os.getcwd(), 'logs', log_filename), 'a')
+                        for data in self.logList:
+                            #55.64206123352051,37.88592338562012,4.89
+                            logStr = ','.join(data)
+                            fw.write(logStr + '\n')
+                        fw.close()
+                        self.logList.clear()
+                        cur_list = [str(lat), str(lon), str(depth)]
+                        self.logList.append(cur_list)
 
 
     def updateInfoLabels(self):
@@ -1455,9 +1457,9 @@ class MainWindow(QMainWindow):
         data = str.split(',')
         if (len(data) == 7):
             strDepth = data[3]
-            depth = round(float(strDepth), 1)
+            self.currentDepth = round(float(strDepth), 1)
             try:
-                self.labelDepth.setText("{}".format(depth))
+                self.labelDepth.setText("{}".format(self.currentDepth))
             except Exception as e:
                 print(e, ' parsingDepthData')
         else:
@@ -1471,7 +1473,6 @@ class MainWindow(QMainWindow):
                     currentTime = data[1]
                     tim = currentTime.split('.')
                     time = tim[0]
-                    print(data)
                     timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
                     #self.LCDtime.display(timeNorm.strftime('%H:%M'))
                     self.currentDate = data[9]
@@ -1494,7 +1495,8 @@ class MainWindow(QMainWindow):
                     self.shipWidget.moveLabelShip(new_x, new_y, int(course))
                     self.circles.setShipPosition(new_x, new_y, int(course))
                     self.updateInfoLabels()
-                    self.loggingData(LatDEC, LonDEC, strSpeed)
+
+                    self.loggingData(LatDEC, LonDEC, self.currentDepth)
                     #self.shipWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
                 else:
                     now = QTime.currentTime()
