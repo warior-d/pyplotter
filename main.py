@@ -35,6 +35,8 @@ from matplotlib.figure import Figure
 import stylescss as styles
 from PIL import Image, ImageOps, ImageFilter
 from PIL.ImageQt import ImageQt
+import sqlite3
+
 
 def getCoordsFromKML(kmlfile):
     tree = ET.parse(kmlfile)
@@ -144,6 +146,7 @@ class Settings():
     ALPHA_CONTOURS = ["1", "0.75", "0.5", "0.25"]
     FREQUENCIES_LINES = ["1", "0.5", "0.25"]
     CURRENT_FREQUENCY_LINES = 1
+    BASE_NMEA = {'comport': 'COM1', 'baudrate': '9600'}
 
 
 
@@ -508,7 +511,7 @@ class Main(QWidget):
     # для передвижения вместе с картой при тапе
     ship_old_pos = None
     old_pos = None
-    mashtab = Settings.DEFAULT_MASHTAB
+    mashtab = Settings.CURRENT_MASHTAB
     FILE_NAME = None
     KMLfileName = Settings.KML_FILE_NAME
     # для расчета движения карты при центровке
@@ -538,9 +541,9 @@ class Main(QWidget):
 
         #########
         #########
-        self.labelPillowMap = QLabel(self)
+        #self.labelPillowMap = QLabel(self)
         #self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: black;')
-        self.labelPillowMap.move(350, 210)
+        #self.labelPillowMap.move(350, 210)
         #########
         #########
 
@@ -563,6 +566,11 @@ class Main(QWidget):
         # И отобразим на карте!
         # TODO : возможно, ресайзить нужно backgroung...
 
+    def resetAfterNewImage(self):
+        Settings.CENTR_LAT = 0
+        Settings.CENTR_LON = 0
+        self.supposedCentr = QPoint()
+        self.doCentrPixels()
 
     def mousePressEvent(self, event):
         print("position global widget = ", event.globalPos())
@@ -698,8 +706,11 @@ class Main(QWidget):
 
     # первоначальная загрузка изображения на плоттер
     # TODO: добавить возможность передачи координаты для привязки сразу (в newWork есть идеи)
-    def addImage(self):
+    def addImage(self, fromParent = False):
         # первоначальное добавление картинки
+        if fromParent:
+            self.resetAfterNewImage()
+
         self.pixmapMap = QPixmap(Settings.FILE_NAME)
         coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
         Settings.LAT_NW, Settings.LON_NW, Settings.LAT_SE, Settings.LON_SE = coordinatesFromFile['north'], \
@@ -718,6 +729,7 @@ class Main(QWidget):
         self.koef = real_distance_map / lengh_meters
         width_new = self.pixmapMap.width() * self.koef
         height_new = self.pixmapMap.height() * self.koef
+
 
         # TODO: сделать добавление, чтобы по координатам был (в центре экрана - нужная координата)
         self.labelMap.resize(int(width_new), int(height_new))
@@ -754,6 +766,7 @@ class Main(QWidget):
 
         # пересечение экрана rect_screen и label_map в текущей позиции
         # для фиксации размера labelPillowMap
+        # TODO: строить нужно с запасом! 
         rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, app.primaryScreen().size().height())
         label_map_rect = QRect(self.labelMap.pos(), self.labelMap.size())
 
@@ -918,20 +931,32 @@ class Login(QDialog):
         print(Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
         super(Login, self).__init__(parent)
         self.setWindowTitle("Image Map")
-        self.setFixedWidth(250)
+        self.setFixedWidth(290)
         self.setFixedHeight(400)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet('background-color: white;')
+
         self.buttonLogin = QPushButton('', self)
         self.buttonLogin.setIcon(QIcon('icons/map.png'))
         self.buttonLogin.setIconSize(QSize(114, 162))
         self.buttonLogin.setFixedSize(114, 162)
         self.buttonLogin.clicked.connect(self.handleLogin)
+
+        self.buttonGPS = QPushButton('', self)
+        self.buttonGPS.setIcon(QIcon('icons/gps.jpg'))
+        self.buttonGPS.setIconSize(QSize(114, 162))
+        self.buttonGPS.setFixedSize(114, 162)
+        self.buttonGPS.clicked.connect(self.startGPS)
+
         self.labelChose = QLabel(self)
         self.labelChose.setGeometry(80, 320, 180, 300)
         self.labelChose.setText("Chose Map")
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
+        layout.addWidget(self.buttonGPS)
+
+    def startGPS(self):
+        pass
 
     def handleLogin(self):
         result = ['false', '', '']
@@ -1076,14 +1101,22 @@ class MainWindow(QMainWindow):
         self.depthMapAction = QAction('Depth', self)
         self.depthMapAction.triggered.connect(self.getDepthMapFile)
         self.subMenuMaps.addAction(self.depthMapAction)
+        self.backgroundMapAction = QAction('Image', self)
+        self.backgroundMapAction.triggered.connect(self.addImageDialog)
+        self.subMenuMaps.addAction(self.backgroundMapAction)
 
         self.connectAction = QAction('Connect', self)
+        self.connectAction.setObjectName("connect")
         self.connectAction.triggered.connect(self.waitingSerial)
         self.menu.addAction(self.connectAction)
 
         self.addGridAction = QAction('Add Grid', self)
         self.addGridAction.triggered.connect(self.createGrid)
         self.menu.addAction(self.addGridAction)
+
+        self.addLogAction = QAction('Write Log', self)
+        self.addLogAction.triggered.connect(self.writeLogs)
+        self.menu.addAction(self.addLogAction)
 
         ##### EXIT #####
         self.exitAction = QAction('Exit', self)
@@ -1097,7 +1130,7 @@ class MainWindow(QMainWindow):
         self.button.setGeometry(int(self.main_window_width - menu_button_width), 0, menu_button_width, 60)
         self.button.setStyleSheet(styles.menuButtonStyle)
 
-        self.current_scale = Settings.DEFAULT_MASHTAB
+        self.current_scale = Settings.CURRENT_MASHTAB
         self.ship_speed = 0.0
 
         lblInfoH = 30
@@ -1121,7 +1154,85 @@ class MainWindow(QMainWindow):
         self.currentDepth = ''
         self.logDataBool = False
         self.logList = []
+        self.connection = self.initConnect()
+        self.initTablesInDB(self.connection)
 
+    def initTablesInDB(self, conn):
+        cur = conn.cursor()
+        exists = False
+        try:
+            create = cur.execute("""CREATE TABLE main_settings(
+                settings_name TEXT,
+                data TEXT
+               );
+            """)
+        except Exception as e:
+            print(e)
+            exists = True
+        conn.commit()
+
+        if not exists:
+            nmea_data = {'settings_name': 'nmea_settings', 'data': '{"comport": "COM1", "baudrate": "9600"}'}
+            cur = conn.cursor()
+            cur.execute("INSERT INTO main_settings VALUES (:settings_name, :data)", nmea_data)
+            conn.commit()
+
+    def insertDB(self, conn, table, data):
+        cur = conn.cursor()
+        try:
+            print(data)
+            cur.execute("INSERT INTO nmea_settings VALUES (:comport, :baudrate)", data)
+        except Exception as e:
+            print(e)
+        conn.commit()
+
+
+    def initConnect(self):
+        if not os.path.exists('db'):
+            os.makedirs('db')
+
+        path = os.path.join(os.getcwd(), 'db', 'main_db.db')
+        connection = sqlite3.connect(path)
+        print(connection)
+        return connection
+
+    def addImageDialog(self):
+        result = ['false', '', '']
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self, "Open image (.jpg, .png) file", "",
+                                                  "JPEG(*.jpg *.jpeg);;PNG(*.png *.PNG);;All Files(*.*)",
+                                                  options=options)
+        # распарсим на ФАЙЛ и ПУТЬ
+        filename = Path(fileName).name
+        dir = Path(fileName).parent
+        # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
+        fileSourseName, fileSourseExtension = filename.split('.')
+        KMLfile = None
+
+        with os.scandir(dir) as files:
+            for file in files:
+                if file.is_file():
+                    KMLfilename, KMLfile_extension = file.name.split('.')
+                    if (KMLfile_extension.upper() == "KML") and (KMLfilename.upper() == fileSourseName.upper()):
+                        KMLfile = KMLfilename + '.' + KMLfile_extension
+        if (KMLfile != None):
+            Settings.FILE_NAME = filename
+            Settings.KML_FILE_NAME = KMLfile
+            self.addImage()
+
+        else:
+            QtWidgets.QMessageBox.warning(
+                self, 'Error', 'Chosen image file have not .kml file around!')
+
+    def addImage(self):
+        self.myWidget.addImage(fromParent = True)
+
+    def writeLogs(self):
+        if self.logDataBool:
+            self.logDataBool = False
+        else:
+            self.logDataBool = True
 
     def loggingData(self, lat, lon, depth):
         if self.logDataBool:
@@ -1145,12 +1256,10 @@ class MainWindow(QMainWindow):
                         cur_list = [str(lat), str(lon), str(depth)]
                         self.logList.append(cur_list)
 
-
     def updateInfoLabels(self):
         self.labelInfoSCALE.setText("Scale     {}m".format(str(int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]))))
         self.labelInfoSOG.setText("SOG     {} km/h".format(str(round(self.ship_speed, 2))))
         self.labelInfoDISTANCE.setText("Distance     {}m".format(str(130)))
-
 
     def getDepthMapFile(self):
         self.figure.clear()
@@ -1284,7 +1393,6 @@ class MainWindow(QMainWindow):
             tic2 = time.perf_counter()
             print("ALL_TIME", tic2 - tic1)
 
-
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.mouse_old_pos = event.pos()
@@ -1322,7 +1430,6 @@ class MainWindow(QMainWindow):
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
 
-
     def mouseDoubleClickEvent(self, event):
         #print("MOUSE MW:", event.pos())
         pos = self.myWidget.getCurrentLabelMapPos()
@@ -1345,7 +1452,12 @@ class MainWindow(QMainWindow):
         self.coordsSE = self.myWidget.getCoord(pos.x(), pos.y(),
                              self.window_width, self.window_height)
 
-    def checkSettings(self):
+    def checkSettings(self, dialog = None, data = {}):
+
+        if dialog is not None:
+            if dialog == 'nmea' and data:
+                self.insertDB(self.connection, 'nmea_settings', data)
+
         self.lineEditDebug.setText("")
         if (Settings.DEBUG_INFO == True):
             self.lineEditDebug.setVisible(True)
@@ -1357,19 +1469,19 @@ class MainWindow(QMainWindow):
     def zoomMinus(self):
         if self.current_scale < Settings.MASHTAB_MAX:
             self.current_scale = self.current_scale + 1
-            Settings.CURRENT_MASHTAB + 1
+            Settings.CURRENT_MASHTAB = Settings.CURRENT_MASHTAB + 1
             self.updateScale()
 
     def zoomPlus(self):
         if self.current_scale > Settings.MASHTAB_MIN:
             self.current_scale = self.current_scale - 1
-            Settings.CURRENT_MASHTAB - 1
+            Settings.CURRENT_MASHTAB = Settings.CURRENT_MASHTAB - 1
             self.updateScale()
 
     def updateScale(self):
         self.gridWidget.zoom_grid()
         self.gridW.zoom_grid()
-        self.myWidget.updateScale(self.current_scale)
+        self.myWidget.updateScale(Settings.CURRENT_MASHTAB)
         self.showStatusBarMessage()
         self.plot()
         self.updateInfoLabels()
@@ -1678,35 +1790,46 @@ class SettingsMap(QDialog):
 class SettingsDialog(QDialog):
     def __init__(self, MainWindow):
         super().__init__(parent=MainWindow)
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.setStyleSheet(styles.nmeadialog)
         self.mainWindow = MainWindow
         self.setWindowTitle("NMEA Settings")
-        self.setGeometry(0, 0, 420, 400)
+        windowX = 400
+        windowY = 200
+        self.setGeometry(0, 0, windowX, windowY)
 
         self.labelPort = QLabel(self)
+        self.labelPort.setStyleSheet(styles.labels)
         self.labelPort.setText('COM port:')
-        self.labelPort.move(5, 20)
+        self.labelPort.move(15, 20)
+
         self.comboPorts = QComboBox(self)
-        self.comboPorts.move(70, 16)
+        self.comboPorts.setGeometry(110, 14, 90, 30)
+        self.comboPorts.setStyleSheet(styles.combobox)
         self.comboPorts.currentIndexChanged.connect(self.setPortName)
+
 
         self.labelPortName = QLabel(self)
         self.labelPortName.setText('COM port name')
-        self.labelPortName.move(145, 20)
+        self.labelPortName.move(210, 20)
 
         self.labelBaudRate = QLabel(self)
         self.labelBaudRate.setText('Baud rate:')
-        self.labelBaudRate.move(5, 50)
+        self.labelBaudRate.setStyleSheet(styles.labels)
+        self.labelBaudRate.move(15, 70)
 
         self.comboBaud = QComboBox(self)
         self.comboBaud.addItems(Settings.BAUD_RATES)
-        self.comboBaud.move(70, 46)
+        self.comboBaud.setStyleSheet(styles.combobox)
+        self.comboBaud.setGeometry(110, 64, 90, 30)
 
         self.labelDebugData = QLabel(self)
         self.labelDebugData.setText('Debug GPS:')
-        self.labelDebugData.move(5, 80)
+        self.labelDebugData.setStyleSheet(styles.labels)
+        self.labelDebugData.move(15, 120)
 
         self.checkDebug = QCheckBox(self)
-        self.checkDebug.move(70, 80)
+        self.checkDebug.move(110, 120)
         self.checkDebug.setCheckState(False)
 
         self.portList = []
@@ -1714,12 +1837,16 @@ class SettingsDialog(QDialog):
         self.ComPorts = self.setPorts()
 
         self.buttonOK = QPushButton(self)
+        self.buttonOK.setStyleSheet(styles.buttons)
+
         self.buttonOK.setText("OK")
-        self.buttonOK.move(250, 350)
+        self.buttonOK.setGeometry(windowX/2 - 90, windowY - 30, 80, 25)
         self.buttonOK.clicked.connect(self.returnOK)
+
         self.buttonNOT = QPushButton(self)
+        self.buttonNOT.setStyleSheet(styles.buttons)
         self.buttonNOT.setText("Cancel")
-        self.buttonNOT.move(330, 350)
+        self.buttonNOT.setGeometry(windowX/2 + 10, windowY - 30, 80, 25)
         self.buttonNOT.clicked.connect(self.returnNOT)
 
         self.setCenter()
@@ -1744,14 +1871,17 @@ class SettingsDialog(QDialog):
         self.comboPorts.addItems(self.portList)
 
     def returnOK(self):
+        list = {"comport": "", "baudrate": ""}
+        list["comport"] = self.comboPorts.currentText()
+        list["baudrate"] = self.comboBaud.currentText()
         Settings.BAUD_RATE = self.comboBaud.currentText()
         Settings.COM_PORT_EKHO = self.comboPorts.currentText()
         if(self.checkDebug.isChecked() == True):
             Settings.DEBUG_INFO = True
         else:
             Settings.DEBUG_INFO = False
-
-        self.mainWindow.checkSettings()
+        print(list)
+        self.mainWindow.checkSettings('nmea', list)
         self.accept()
 
     def returnNOT(self):
