@@ -1055,9 +1055,10 @@ class Login(QDialog):
                     KMLfilename, KMLfile_extension = file.name.split('.')
                     if (KMLfile_extension.upper() == "KML") and (KMLfilename.upper() == fileSourseName.upper()):
                         KMLfile = KMLfilename + '.' + KMLfile_extension
-        if (KMLfile != None):
-            Settings.FILE_NAME = filename
-            Settings.KML_FILE_NAME = KMLfile
+
+        if (KMLfile is not None):
+            Settings.FILE_NAME = fileName #filename
+            Settings.KML_FILE_NAME = os.path.join(dir, KMLfile) #KMLfile
             self.accept()
         else:
             QtWidgets.QMessageBox.warning(
@@ -1372,7 +1373,7 @@ class MainWindow(QMainWindow):
             dir = Path(file_name).parent
             # распарсим ФАЙЛ на ИМЯ и РАСШИРЕНИЕ
             fileSourseName, fileSourseExtension = filename.split('.')
-            Settings.FILE_DEPTH_NAME = filename
+            Settings.FILE_DEPTH_NAME = file_name
 
             ########### ||||| вниз
             self.contour_data = pd.read_csv(Settings.FILE_DEPTH_NAME, header=None, names=['y', 'x', 'z'])

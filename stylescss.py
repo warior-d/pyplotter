@@ -138,7 +138,6 @@ labelInfo = """
     border: none;
     color: rgba(230, 230, 230);
     padding-left: 10px;
-    font-smooth: 2em;
 """
 labelInfoRight = """
     background-color: transparent;
@@ -148,7 +147,6 @@ labelInfoRight = """
     border: none;
     color: rgba(230, 230, 230);
     padding-right: 5px;
-    font-smooth: 2em;
 """
 
 labelInfoTop = """
