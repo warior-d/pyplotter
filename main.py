@@ -508,6 +508,7 @@ class Circles(QWidget):
 class Main(QWidget):
     mouse_old_pos = None
     label_old_pos = None
+    label_pillow_old_pos = None
     # для передвижения вместе с картой при тапе
     ship_old_pos = None
     old_pos = None
@@ -539,16 +540,20 @@ class Main(QWidget):
         self.labelMap.move(350, 210)
         self.updateCentrPoint()
 
-        #########
-        #########
-        #self.labelPillowMap = QLabel(self)
-        #self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: black;')
-        #self.labelPillowMap.move(350, 210)
-        #########
-        #########
+        self.source_image_width = None
+        self.source_image_height = None
 
         self.addImage()
+
+        #########
+        #########
+        self.screen_old_pos = QPoint(screen_width/2, screen_height/2)
+        self.labelPillowMap = QLabel(self)
+        self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: green;')
+        self.labelPillowMap.move(350, 210)
         #self.addImagePillow()
+        #########
+        #########
 
         # включим отслеживание мышки
         #self.setMouseTracking(True)
@@ -711,7 +716,11 @@ class Main(QWidget):
         if fromParent:
             self.resetAfterNewImage()
 
+
         self.pixmapMap = QPixmap(Settings.FILE_NAME)
+        self.source_image_width = self.pixmapMap.width()
+        self.source_image_height = self.pixmapMap.height()
+
         coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
         Settings.LAT_NW, Settings.LON_NW, Settings.LAT_SE, Settings.LON_SE = coordinatesFromFile['north'], \
                                                                              coordinatesFromFile['west'], \
@@ -737,9 +746,18 @@ class Main(QWidget):
 
 
     def addImagePillow(self):
+        self.rect_screen = QRect(0, #-Settings.DESCTOP_WIDHT,
+                                 0, #-app.primaryScreen().size().height(),
+                                 Settings.DESCTOP_WIDHT,
+                                 (app.primaryScreen().size().height()))
+        screen_width = QApplication.instance().desktop().availableGeometry().width()
+        screen_height = QApplication.instance().desktop().availableGeometry().height()
         # первоначальное добавление картинки
         self.pillImage = Image.open(Settings.FILE_NAME)
         self.picture_width, self.picture_height = self.pillImage.size
+        print("self.picture_width, self.picture_height", self.picture_width, self.picture_height)
+        self.big_diagonal = ( (screen_width ** 2) + (screen_height ** 2) ) ** (0.5)
+        print("self.big_diagonal", self.big_diagonal)
         coordinatesFromFile = getCoordsFromKML(Settings.KML_FILE_NAME)
         Settings.LAT_NW, Settings.LON_NW, Settings.LAT_SE, Settings.LON_SE = coordinatesFromFile['north'], \
                                                                              coordinatesFromFile['west'], \
@@ -760,42 +778,56 @@ class Main(QWidget):
 
         # TODO: сделать добавление, чтобы по координатам был (в центре экрана - нужная координата)
         self.labelMap.resize(int(width_new), int(height_new))
-        self.pillowLabelMove()
+        print("self.labelMap.", self.labelMap.size(), self.koef)
+        self.pillowLabelSetImage(first_set=True)
 
-    def pillowLabelMove(self):
+    def pillowLabelSetImage(self, first_set=False):
 
+        print(self.supposedCentr)
+
+        # TODO: строить нужно с запасом!
+        # тогда когда мы делаем move - мы просто move label, а при остановке -
+        # отрисовываем в Pixmap
         # пересечение экрана rect_screen и label_map в текущей позиции
         # для фиксации размера labelPillowMap
-        # TODO: строить нужно с запасом! 
-        rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, app.primaryScreen().size().height())
-        label_map_rect = QRect(self.labelMap.pos(), self.labelMap.size())
+        #rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, app.primaryScreen().size().height())
+        #rect_screen = QRect(0-Settings.DESCTOP_WIDHT, 0-app.primaryScreen().size().height(), 3*Settings.DESCTOP_WIDHT, 3*(app.primaryScreen().size().height()))
+        #rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, (app.primaryScreen().size().height()))
 
-        cross_reqt = rect_screen.intersected(label_map_rect)
+        label_map_rect = QRect(self.labelMap.pos(), self.labelMap.size())
+        label_pillow_reqt = QRect(self.labelPillowMap.pos(), self.labelPillowMap.size())
+
+        #cross_reqt = rect_screen.intersected(label_map_rect)
+        cross_reqt = label_map_rect.intersected(self.rect_screen)
         cross_reqt_size = cross_reqt.getRect()
-        print("cross_reqt", cross_reqt, cross_reqt_size)
+        print(first_set,
+              "cross_reqt", cross_reqt, #cross_reqt_size,
+              "rect_screen", self.rect_screen,
+              "label_pillow_reqt", label_pillow_reqt,
+              "label_map_rect", label_map_rect)
         self.labelPillowMap.setGeometry(cross_reqt)
         self.labelPillowMap.setAlignment(QtCore.Qt.AlignLeft)
 
         if cross_reqt != QRect(0, 0, 0, 0):
+            if (cross_reqt != label_map_rect) or first_set:
 
-            print("labelMap", self.labelMap.pos(), self.labelMap.size())
-            width_new = int(self.picture_width * self.koef)
-            height_new = int(self.picture_height * self.koef)
+                #print("labelMap", self.labelMap.pos(), self.labelMap.size())
+                width_new = int(self.picture_width * self.koef)
+                height_new = int(self.picture_height * self.koef)
 
-            pillImage_current = self.pillImage.resize((int(width_new), int(height_new)))
+                pillImage_current = self.pillImage.resize((int(width_new), int(height_new)))
 
-            crop_list = (cross_reqt_size[0] - self.labelMap.pos().x(),
-                         cross_reqt_size[1] - self.labelMap.pos().y(),
-                         (cross_reqt_size[0] - self.labelMap.pos().x()) + cross_reqt_size[2],
-                         (cross_reqt_size[1] - self.labelMap.pos().y()) + cross_reqt_size[3]
-                         )
-            print(crop_list)
-            im = pillImage_current.crop(crop_list)
-            im = im.convert("RGBA")
-            qim = ImageQt(im)
-            pixmap = QPixmap(QImage(qim))
-            self.labelPillowMap.setPixmap(pixmap)
-
+                crop_list = (cross_reqt_size[0] - self.labelMap.pos().x(),
+                             cross_reqt_size[1] - self.labelMap.pos().y(),
+                             (cross_reqt_size[0] - self.labelMap.pos().x()) + cross_reqt_size[2],
+                             (cross_reqt_size[1] - self.labelMap.pos().y()) + cross_reqt_size[3]
+                             )
+                print("crop_list:", crop_list)
+                im = pillImage_current.crop(crop_list)
+                im = im.convert("RGBA")
+                qim = ImageQt(im)
+                pixmap = QPixmap(QImage(qim))
+                self.labelPillowMap.setPixmap(pixmap)
 
 
     def getLabelMapPosition(self):
@@ -831,11 +863,11 @@ class Main(QWidget):
         pixelLenght = int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]) / Settings.GRID_STEP
         lengh_pixels = (((y2 - y1) ** (2)) + ((x2 - x1) ** (2))) ** (0.5)
         lengh_meters = lengh_pixels * pixelLenght
-        koef = real_distance_map / lengh_meters
+        self.koef = real_distance_map / lengh_meters
 
         # пересчитаем картинку и изменим ее
-        width_new = self.pixmapMap.width() * koef
-        height_new = self.pixmapMap.height() * koef
+        width_new = self.pixmapMap.width() * self.koef
+        height_new = self.pixmapMap.height() * self.koef
 
         self.labelMap.resize(int(width_new), int(height_new))
         self.labelMap.setPixmap(
@@ -900,6 +932,12 @@ class Main(QWidget):
     def setLabelOldPos(self, pos):
         self.label_old_pos = pos
 
+    def setScreenOldPos(self, pos):
+        self.screen_old_pos = pos
+
+    def setLabelPillowOldPos(self, pos):
+        self.label_pillow_old_pos = pos
+
     # TODO: здесь, возможно, потребуется переопределить позиции мыши?...
     def mooving(self, delta):
         new_pos_label_map = self.label_old_pos + delta
@@ -913,10 +951,49 @@ class Main(QWidget):
         new_pos_center = self.supposedCentr + delta
         self.newCentr = self.getCoordFromCentrPoint(new_pos_center.x(), new_pos_center.y(),
                                                int(Settings.DESCTOP_WIDHT / 2), int(Settings.DESCTOP_HEIGHT / 2))
-        #self.pillowLabelMove()
+
+        new_pos_label_pillow = self.label_pillow_old_pos + delta
+        self.labelPillowMap.move(new_pos_label_map)
+
+
+        #self.test_moving()
+
+    def test_moving(self):
+
+        rect_screen = QRect(0, 0, Settings.DESCTOP_WIDHT, app.primaryScreen().size().height())
+        label_map_width = self.labelMap.size().width()
+        label_map_height = self.labelMap.size().height()
+
+        label_map_rect = QRect(self.labelMap.pos(), self.labelMap.size())
+        cross_reqt = label_map_rect.intersected(rect_screen)
+
+        dy = (self.labelMap.pos().y() - cross_reqt.getRect()[1])
+        dx = (self.labelMap.pos().x() - cross_reqt.getRect()[0])
+
+        #coeffizient =
+
+        self.labelPillowMap.setGeometry(cross_reqt)
+
+
+        crop_source = (
+
+            int(abs(dx)/self.koef),
+            int(abs(dy)/self.koef),
+            int((abs(dx)/self.koef) + cross_reqt.getRect()[2]/self.koef),
+            int((abs(dy)/self.koef) + cross_reqt.getRect()[3]/self.koef),
+        )
+
+        print("cross_reqt", cross_reqt.getRect(), dx, dy, self.source_image_width, self.source_image_height, self.koef, crop_source)
+
 
     def getCurrentLabelMapPos(self):
         return self.labelMap.pos()
+
+    def getCurrentLabelPillowPos(self):
+        return self.labelPillowMap.pos()
+
+    def getCurrentScreenCenter(self):
+        return self.rect_screen.center()
 
     def getCurrentLabelShipPos(self):
         return self.labelShip.pos()
@@ -1141,14 +1218,34 @@ class MainWindow(QMainWindow):
         self.labelInfoSOG = QLabel(self)
         self.labelInfoSOG.setStyleSheet(styles.labelInfoTop)
         self.labelInfoSOG.setGeometry(0, self.main_window_height - 3*lblInfoH, lblInfoW, lblInfoH)
+        self.labelInfoSOG.setText("SOG")
+
+        self.labelInfoSOGdata = QLabel(self)
+        self.labelInfoSOGdata.setStyleSheet(styles.labelInfoTopRight)
+        self.labelInfoSOGdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.labelInfoSOGdata.setGeometry(100, self.main_window_height - 3*lblInfoH, 110, lblInfoH)
 
         self.labelInfoSCALE = QLabel(self)
         self.labelInfoSCALE.setStyleSheet(styles.labelInfo)
         self.labelInfoSCALE.setGeometry(0, self.main_window_height - 2*lblInfoH, lblInfoW, lblInfoH)
+        self.labelInfoSCALE.setText("Scale")
+
+        self.labelInfoSCALEdata = QLabel(self)
+        self.labelInfoSCALEdata.setStyleSheet(styles.labelInfoRight)
+        self.labelInfoSCALEdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.labelInfoSCALEdata.setGeometry(100, self.main_window_height - 2*lblInfoH, 110, lblInfoH)
+
 
         self.labelInfoDISTANCE = QLabel(self)
         self.labelInfoDISTANCE.setStyleSheet(styles.labelInfo)
         self.labelInfoDISTANCE.setGeometry(0, self.main_window_height - lblInfoH, lblInfoW, lblInfoH)
+        self.labelInfoDISTANCE.setText("Distance")
+
+        self.labelInfoDISTANCEdata = QLabel(self)
+        self.labelInfoDISTANCEdata.setStyleSheet(styles.labelInfoRight)
+        self.labelInfoDISTANCEdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.labelInfoDISTANCEdata.setGeometry(100, self.main_window_height - lblInfoH, 110, lblInfoH)
+
         self.updateInfoLabels()
         self.currentDate = ''
         self.currentDepth = ''
@@ -1257,9 +1354,9 @@ class MainWindow(QMainWindow):
                         self.logList.append(cur_list)
 
     def updateInfoLabels(self):
-        self.labelInfoSCALE.setText("Scale     {}m".format(str(int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]))))
-        self.labelInfoSOG.setText("SOG     {} km/h".format(str(round(self.ship_speed, 2))))
-        self.labelInfoDISTANCE.setText("Distance     {}m".format(str(130)))
+        self.labelInfoSCALEdata.setText("{} m".format(str(int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]))))
+        self.labelInfoSOGdata.setText("{} km/h".format(str(round(self.ship_speed, 2))))
+        self.labelInfoDISTANCEdata.setText("0 m")
 
     def getDepthMapFile(self):
         self.figure.clear()
@@ -1354,21 +1451,30 @@ class MainWindow(QMainWindow):
 
                 # нарисовать и заполнить контуры
 
-                self.cpf = self.ax.contourf(self.X, self.Y, self.Z, levels,  cmap=self.cmap, alpha=Settings.ALPHA_CONTOUR)
+                self.cpf = self.ax.contourf(self.X, self.Y, self.Z,
+                                            levels,
+                                            cmap=self.cmap,
+                                            alpha=Settings.ALPHA_CONTOUR,
+                                            #antialiased=True,
+                                            #nchunk=40,
+                                            algorithm='mpl2014'
+                                            )
                 line_colors = ['black' for line in self.cpf.levels]
 
                 # изолинии
+                tic3 = time.perf_counter()
                 self.cp = self.ax.contour(self.X, self.Y, self.Z,
                                           levels=levels,
                                           colors=line_colors,
                                           linewidths=0.3)
-
+                tic4 = time.perf_counter()
                 # количество градаций глубин для подписей
                 clevels = []
                 for i in arange(0, self.maxDepth + 1, 1):
                     clevels.append(i)
 
                 # подписи линий
+                tic5 = time.perf_counter()
                 self.ax.clabel(self.cp,
                                fontsize=7,
                                colors= 'black', #line_colors,
@@ -1377,7 +1483,7 @@ class MainWindow(QMainWindow):
                                inline_spacing=2,
                                #manual=True
                                )
-
+                tic6 = time.perf_counter()
                 self.ax.set_position([0, 0, 1, 1])
 
                 central_lat = (min_shir + max_shir) / 2
@@ -1390,13 +1496,15 @@ class MainWindow(QMainWindow):
             else:
                 self.figure.clear()
                 self.canvas.draw()
-            tic2 = time.perf_counter()
-            print("ALL_TIME", tic2 - tic1)
+            ticEND = time.perf_counter()
+            print("ALL_TIME", ticEND - tic1, "self.cp: ", tic4 - tic3, "self.ax.clabel", tic6 - tic5, "canvas.draw()", ticEND - tic6)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.mouse_old_pos = event.pos()
             self.myWidget.setLabelOldPos(self.myWidget.getCurrentLabelMapPos())
+            self.myWidget.setLabelPillowOldPos(self.myWidget.getCurrentLabelPillowPos())
+            #self.myWidget.setScreenOldPos(self.myWidget.getCurrentScreenCenter())
             self.shipWidget.setShipOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
 
@@ -1406,6 +1514,7 @@ class MainWindow(QMainWindow):
             self.myWidget.doCentrPixels()
             if self.myWidget.getNewCenter() != '':
                 Settings.CENTR_LAT, Settings.CENTR_LON = self.myWidget.getNewCenter().split(', ')
+            #self.myWidget.pillowLabelSetImage()
         self.showStatusBarMessage()
         self.plot()
 
@@ -1840,13 +1949,13 @@ class SettingsDialog(QDialog):
         self.buttonOK.setStyleSheet(styles.buttons)
 
         self.buttonOK.setText("OK")
-        self.buttonOK.setGeometry(windowX/2 - 90, windowY - 30, 80, 25)
+        self.buttonOK.setGeometry(int(windowX/2 - 90), int(windowY - 30), 80, 25)
         self.buttonOK.clicked.connect(self.returnOK)
 
         self.buttonNOT = QPushButton(self)
         self.buttonNOT.setStyleSheet(styles.buttons)
         self.buttonNOT.setText("Cancel")
-        self.buttonNOT.setGeometry(windowX/2 + 10, windowY - 30, 80, 25)
+        self.buttonNOT.setGeometry(int(windowX/2 + 10), int(windowY - 30), 80, 25)
         self.buttonNOT.clicked.connect(self.returnNOT)
 
         self.setCenter()
