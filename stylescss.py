@@ -170,7 +170,7 @@ labelLetterDepth = """
 labelInfo = """
     background-color: rgba(0, 0, 0, 150);
     font-family: Swis721 Cn BT;
-    font-size: 40px;
+    font-size: 20px;
     font-weight: bold;
     border: none;
     color: rgba(230, 230, 230);
