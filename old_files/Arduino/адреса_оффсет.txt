@@ -1,0 +1,7 @@
+MPU:        0x68
+HMC_BIG:    0x0D
+HMC_LITTLE: 0x1E
+
+setOffset(82, -157);
+
+вот еще: ffX=:95:--offY=:-117:::offZ=:-3

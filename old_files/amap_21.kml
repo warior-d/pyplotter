@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>amap_21.jpg</name><color>88ffffff</color><Icon>
+<href>amap_21.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.6830255089394</north>
+<south>55.6813953761599</south>
+<east>37.8804624080658</east>
+<west>37.8773564100266</west>
+</LatLonBox></GroundOverlay></kml>

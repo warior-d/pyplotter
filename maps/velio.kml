@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>velio.jpg</name><color>88ffffff</color><Icon>
+<href>velio.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>57.7673996871375</north>
+<south>57.617094943795</south>
+<east>33.1338214874268</east>
+<west>32.9243516921997</west>
+</LatLonBox></GroundOverlay></kml>

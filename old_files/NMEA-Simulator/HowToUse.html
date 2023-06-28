@@ -1,0 +1,412 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
+<html>
+<head>
+  <title>Kave Oy - NMEA simulator</title>
+
+  <meta name="description" content="Kave Oy - NMEA simulator"  />
+  <meta name="keywords" content="Kave Oy, NMEA 0183, NMEA simulator, com0com" />
+
+  <meta http-equiv="Content-type" content="text/html; charset=iso-8859-1" />
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <style>
+  body {
+    width:  80%;
+    margin-left:50px;
+    background-color:lightblue;
+  }
+  p {
+  }
+  </style>
+</head>
+
+<body>
+  <h1>NMEA simulator</h1>
+  <p>
+  You can use NMEA simulator to simulate real NMEA 0183 or NMEA 2000 devices or analyze bus messages. With simulator you can e.g. test your navigation
+  application at home without any physical devices. It can be also used to simulate data for real devices on bus.
+  </p>
+  <p>
+  <h3>Features</h3>
+  <ul>
+    <li>
+    Sends common NMEA0183 or NMEA2000 messages. For NMEA2000 output you need specific hw to connect to the NMEA2000 bus.
+    </li>
+    <li>
+    NMEA2000 device simulation. With <a href="https://acrossoceansystems.com/index.php/nmea2000-nmea0183-simulator/">commercial NMEA2000 / NMEA0183 Simulator</a>
+    also does address claiming and responding to message request.
+    </li>
+    <li>
+    Reads NMEA0183 or NMEA2000 messages and displays them in console in chronologic order or list as latest different messages.
+    </li>
+    <li>
+    NMEA2000 bus device list. Can be defined to work as active or passive.
+    </li>
+    <li>
+    Message highlighting.
+    </li>
+    <li>
+    Message filtering.
+    </li>
+    <li>
+    Real GPS satellite simulation.
+    </li>
+    <li>
+    Save messages for further analyze.
+    </li>
+    <li>
+    Playback for saved messages.
+    </li>
+    <li>
+    Loads messages saved in Simulator, OpenSkipper xml or Actisense EBL format.
+    </li>
+    <li>
+    Free version has some limitations:<br>
+    - Message count is limited to 5000 for Message console or Loaded messages.<br>
+    - Only 2 message highlighting.<br>
+    - Only first 100 NMEA2000 messages will be showed parsed.<br>
+    - Less sending options.<br>
+    </li>
+    <li>
+    Coming: Replay loaded messages.
+    </li>
+  </ul>
+  </p>
+  <p>
+  <h3>Test without physical devices</h3>
+  To use NMEA simulator locally without physical ports you need to setup it to send data to one COM port. This port has to be connected
+  with null modem cable to other COM port, what your e.g. navigation software listens. You do not need
+  real ports at all, since there is also null modem cable emulator com0com. So try this setup with NMEA simulator
+  do the next:
+  </p>
+  <ul >
+    <li>
+    Download com0com null modem emulator from: <a href="http://sourceforge.net/projects/com0com/">http://sourceforge.net/projects/com0com/</a>
+    </li>
+    <li>
+    Install com0com comport emulator driver and add e.g. com port pair COM29-COM30.
+    </li>
+    <li>
+    On NMEA simulator "Tools"-"Options..."-"NMEA0183" Choose port COM29 for sending.
+    </li>
+    <li>
+    Open your navigation software and choose port COM30 for reading NMEA 0183 data. Depending your navigation software you may need to
+    also define which sentences it listens. If possible, choose all.
+    </li>
+    <li>
+    On NMEA Simulator main window lower right tick checkbox "Run", so it will start sending data to selected com port (COM29).
+    On status row lower right there should read "Msg Buffer: 0". If that start to grow, no one is reading data from other
+    end (COM30). Check that you have configured you receiving application right and it is listening.
+    </li>
+  </ul>
+  </p>
+  For NMEA2000 select com port on "Tools"-"Options..."-"NMEA2000". Note that NMEA Simulator currently supports only Actisense format
+  for sending, so your application must also support that format for NMEA 2000. You can also test NMEA Simulator with Actisense "NMEA Reader", which you can download
+  from <a href="https://www.actisense.com/acti_software/nmea-reader/">https://www.actisense.com/acti_software/nmea-reader/</a>
+  <p>
+  <p>
+  <h3>Connecting to real world</h3>
+  If you want to send NMEA 0183 data to physical NMEA 0183 devices, simply connect com port to them and select that port on  NMEA Simulator
+  NMEA0183 settings like for null modem connection. See also <b>Note 2!</b>
+  </p>
+  <p>
+  If you want to send NMEA 2000 data to physical NMEA 2000 bus, you need also supporting hardware for that. You can use either 
+  <a href="https://acrossoceansystems.com/index.php/nmea2000-nmea0183-simulator/">Across Ocean Systems NMEA2000 / NMEA0183 Simulator</a> (See <b>Note 2!</b>), 
+  Actisense NGT-1 or build your own box with my <a href="https://github.com/ttlappalainen/NMEA2000">NMEA 2000 library</a> 
+  example ActisenseListenerSender. I prefer to use Teensy 3.2-3.6 with example. See <b>Note 1</b> and <b>Note 2!</b>
+  </p>
+  <h3>Simulating devices</h3>
+  NMEA Simulator can also simulate NMEA 2000 devices. You can define device for NMEA Simulator to match your real device. To do also
+  address claiming, check "Address claiming" under device definition. Note that address claiming does not work with NGT-1. If you
+  do not enable address claiming be carefull to define
+  device source address different than any other device on your bus.
+  <p>
+  <p>
+  <h3>Run multiple NMEA Simulator instances</h3>
+  You can run multiple NMEA Simulator instances with different options by starting simulator with command line option:<br>
+  NMEA_Simulator -options &lsaquo;path_to_options_file&rsaquo;
+  </p>
+  <h3>Replay recorded track</h3>
+  NMEA Simulator can follow track you have recorded with your navigation software. Currently there is only support for
+  OpenCPN .gpx track or route, Nobeltec VNS and Admiral track format. 
+  Send me sample of your track format, so I may add it, if you see that function usable for you.
+  </p>
+  <p>
+  <h3>Notes</h3>
+  <b>Note 1!</b> Some features on simulator requires that device communicates directly with bus. E.g. Actisense NGT-1 acts as bus device
+  so all messages sent from simulator shows on bus as sent from NGT-1. To get full power of these features you need either
+  <a href="https://acrossoceansystems.com/index.php/nmea2000-nmea0183-simulator/">commercial NMEA2000 / NMEA0183 Simulator.</a>
+  You can build own box with NMEA2000 library ActisenseListenerSender example, where both streams has been defined for Serial,
+  but with it you will not see NMEA2000 messages parsed.
+  </p>
+  <p>
+  <b>Note 2!</b> With commercial <a href="https://acrossoceansystems.com/">Across Ocean Systems</a> 
+  <a href="https://acrossoceansystems.com/index.php/nmea2000-nmea0183-simulator/">NMEA2000 / NMEA0183 Simulator.</a>  
+  box you will get some other extended features. Commercial box has also NMEA0183 connector so you can use same
+  box for sending both NMEA2000 and NMEA0183 data.
+  </p>
+  <p>
+  </p>
+
+  <h2>Command line options</h2>
+  <ul>
+    <li>
+	  <p>
+	   -options &lsaquo;path_to_options_file&rsaquo;<br>
+	   Start simulator by saving all settings to given .ini file. If file does not exist, it will be created and current default
+	   options will be copied to it.<br>
+	   You can use definition %PROGDIR% to point NMEA_Simulator.exe location. e.g.<br>
+	   -options %PROGDIR%\MyDevice.ini
+	  </p>
+    </li>
+    <li>
+	  <p>
+	   -RunStartDelay &lsaquo;run_delay_in_ms&rsaquo;<br>
+	   Set NMEA Simulator to run mode after given delay. Minimum delay is 100 ms.
+	  </p>
+    </li>
+  </ul>
+
+  </p>
+  <p>
+  <h2>License</h2>
+  <p>
+   You can use NMEA simulator for personal use for free.
+  </p>
+  <p>
+   For commercial use, please contact author (see Help-About on NMEA simulator) to support development. Note that
+   there is more options on commercial version.
+  </p>
+  <p>
+  There is no warranty, so use it with your own risk.
+  </p>
+  
+  <h2>Thanks</h2>
+  <p>
+  For Kees Verruijt for his excellent CanBoat project and Dr. Andrew Mason for OpenSkipper project. These were start
+  for simulator NMEA2000 part data descriptions.
+  </p>
+  <p>
+  For Dr. T.S. Kelso for managing satellite information on https://celestrak.com/. Based on his "SGP4 Pascal Library" on
+  https://celestrak.com/software/tskelso-sw.php I managed to add GPS satellite simulation.  
+  </p>
+
+
+  <p>
+  <h2>Version history</h2>
+  </p>
+
+  <p>
+  <b>Version 1.19.1.355 (27.09.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Simulator devices passes now NMEA 2000 certification tests. See NMEA2000 certified device.
+    </li>
+    <li>
+      Added possibility to command first transmission interval offset. See. NMEA2000 Commands, Request
+    </li>
+    <li>
+      Added "Signed" option for field parameters in  NMEA2000 Commands, Request
+    </li>
+    <li>
+      Added "Open settings ..." and "Save settings as ..." commands to file menu.
+    </li>
+    <li>
+      Improved transport protocol data handling. Now shows both separate TP comminication and full message.
+    </li>
+    <li>
+      Changed device list collection handling. If request source is one of simulator devices source, device must be enabled for active information collection. See General settings.
+    </li>
+    <li>
+      Fixed value enabling - popup did not appear.
+    </li>
+    <li>
+      Fixed "Reset pri/delay" works again.
+    </li>
+    <li>
+      Fixed some PGNs default priority.
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.18.1.330 (09.08.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Simulator devices supports now updating device information and configuration information with PGN 126208
+    </li>
+    <li>
+      Started Group Function Request handling. First supports 60928, 126464, 126996, 126998.
+    </li>
+    <li>
+      Improved message sending timing.
+    </li>
+    <li>
+      Fixed "Message list" filtering to allow maximum filters in extended mode.
+    </li>
+    <li>
+      Fixed "Message list" update in filtered mode.
+    </li>
+    <li>
+      Fixed optional settings handling.
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.6.326 (17.07.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Added PGN descriptions 127496, 127498.
+    </li>
+    <li>
+      Fixed PGN 126464 - did not show all supported PGNs.
+    </li>
+    <li>
+      Fixed broken ISO request (PGN 59904) response.
+    </li>
+    <li>
+      Added support to change Simulator device source with ISO commanded address PGN 65240
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.5.321 (06.07.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Added PGN descriptions 127237, 130577.
+    </li>
+    <li>
+      Fixed Wind PGN 130306
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.4.319 (19.03.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Improved "At anchor simulation".
+    </li>
+    <li>
+      Fixed "out of resource" crash caused by compass control.
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.3.316 (28.02.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Fixed some proprietary PGN description.
+    </li>
+    <li>
+      Extended usable memory. Now can show over 6 M messages.
+    </li>
+    <li>
+      Added memory usage check to avoid sw locking on out of memory.
+    </li>
+    <li>
+      Now resolves NMEA Simulator box and shows it named on port list instead of plain "USB serial".
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.2.314 (13.02.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+      Added playback for Recorded message console.
+    </li>
+    <li>
+      Added Group Function (PGN 126208) parsing. Parsing can be done for known PGNs.
+    </li>
+    <li>
+      Added request commands to device information.
+    </li>
+    <li>
+      Added commands to edit device and configuration information for device to device information.
+    </li>
+    <li>
+      Added automatic update checking for once/week.
+    </li>
+    <li>
+      Added NMEA0183 message descriptions BOD, BWC, BWW, DTM, GNS, GRS, GST, GSA, GSV ,RMA ,RMB, VDR, VLW
+    </li>
+    <li>
+      Added PGN descriptions 130322, 130323
+    </li>
+  </ul>
+
+  <p>
+  <b>Version 1.17.1.312 (25.01.2022)</b>
+  </p>
+  <p>
+  Changes:
+  </p>
+  <ul>
+    <li>
+    Finally - build in help.
+    </li>
+    <li>
+    Added "Disable sending" checkbox to main page for quickly disable all sending.
+    </li>
+    <li>
+    Improved find on message console<br>
+    - Added message start/end time find rule
+    - Added instance/ID for find. Instance/ID is e.g., tank instance on PGN 127505, MMSI on AIS messages.<br>
+    - Check box to find forward (checked) or backward (unchecked).
+    - Now hides unselected fields.<br>
+    </li>
+    <li>
+    Added message filtering for message console/list. 
+    You can add message dismiss/accept filters with different parameters. 
+    There is also global "Filters enabled", which must be checked to apply defined filters. This setting is
+    unchecked on restart and will be automatically checked on filtering change.
+    </li>
+    <li>
+    Renamed "Loaded messages..." to "Recorded message console..."
+    </li>
+    <li>
+    Added export messages. It supports:<br>
+    - CSV format = pure comma separated format with . as decimal point<br>
+    - CSV locale format = list separator and decimal point according to computer locale. Work locally with Excel.<br>
+    - Excel format = creates .xlsx file.
+    </li>
+    <li>
+    Added J1939 PGNs 65001-65030
+    </li>
+    <li>
+    Removed scanning of "Serial over Bluetooth links". Scanning them caused long delay on opening Options.
+    </li>
+  </ul>
+
+  <p>
+  <b>Older history on build in help.</b>
+  </p>
+
+</body>
+</html>

@@ -2,8 +2,8 @@
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
-    QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QLCDNumber, QLineEdit, QCheckBox, \
-    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout
+    QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QCheckBox, \
+    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout, QGroupBox, QGridLayout
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -14,11 +14,11 @@ from geopy import Point
 from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
-from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF
+from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF, QSettings
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont, QImage
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
-from PyQt5.QtCore import QTime
+from PyQt5.QtCore import QTime, QTimer, QDateTime
 import time
 
 ############
@@ -31,7 +31,9 @@ from matplotlib import rcParams, colors
 from math import cos, radians, ceil
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.figure import Figure
+import scipy.interpolate as si
 #############
+import stylescss
 import stylescss as styles
 from PIL import Image, ImageOps, ImageFilter
 from PIL.ImageQt import ImageQt
@@ -138,7 +140,14 @@ class Settings():
                             "#66ff99", "#33ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#0000cc", "#000099"],
                     "Bright": ["#cc7f7f", "#e57f7f", "#ff7f7f", "#ff997f", "#ffb27f", "#ffcc7f", "#ffcc7f", "#ffff7f", "#e5ff99",
                                "#ccffb2", "#b2ffcc", "#99ffe5", "#7fffff", "#7fe5ff", "#7fccff", "#7fb2ff", "#7f99ff", "#7f7fff", "#7f7fe5", "#7f7fcc"],
-                    "Water": ["#A9D6E5", "#89C2D9", "#61A5C2", "#468FAF", "#2C7DA0", "#2A6F97", "#014F86", "#01497C", "#013A63", "#012A4A", "#01243E"]
+                    "Water": ["#A9D6E5", "#89C2D9", "#61A5C2", "#468FAF", "#2C7DA0", "#2A6F97", "#014F86", "#01497C", "#013A63", "#012A4A", "#01243E"],
+                    "Test": ["#e73b0a", "#d64d0f", "#d1631d", "#d48936", "#594c2e", "#5f5a48", "#3a413a", "#656856", "#6d7e72"],
+                    "Zhura": ["#ba1505", "#fa9411", "#f6c318", "#ecd410", "#d7cc13",
+                              "#b9bf14", "#85c42b", "#13a933", "#05ab58", "#069765", "#167377", "#20577f", "#152a7a", "#0e125b"
+                              ],
+                    "WaterDeep": ["#ffffff", "#e6f2fd", "#cce5fb", "#b3d8fa", "#99cbf8", "#80bff7", "#66b2f5", "#4da5f3", "#3398f2", "#1a8cf0", "#007fef",
+                                  "#0274d9", "#046ac5", "#065fae", "#08569a", "#0a4b85", "#0c4070", "#0e365b", "#102c45", "#122230", "#14181c"
+                                  ]
                     }
     CURRENT_PALETTE = "Base"
     DEBUG_INFO = False
@@ -147,6 +156,8 @@ class Settings():
     FREQUENCIES_LINES = ["1", "0.5", "0.25"]
     CURRENT_FREQUENCY_LINES = 1
     BASE_NMEA = {'comport': 'COM1', 'baudrate': '9600'}
+    HEIGHT_SCREEN = None
+    WIDTH_SCREEN = None
 
 
 
@@ -388,6 +399,7 @@ class GridWidget(QWidget):
         self.mPixmap = QPixmap()
         self.setVisible(False)
 
+
     def paintEvent(self, event):
         self.window_height = self.size().height()
         self.window_width = self.size().width()
@@ -444,37 +456,42 @@ class GridWidget(QWidget):
 class Circles(QWidget):
     def __init__(self):
         super().__init__()
-        screen_width = QApplication.instance().desktop().availableGeometry().width()
-        screen_height = QApplication.instance().desktop().availableGeometry().height()
-        self.setGeometry(0, 0, screen_width, screen_height)
-        self.shipPosition = QPoint()
+        #super().__init__()
+        self.screen_width = Settings.WIDTH_SCREEN
+        self.screen_height = Settings.HEIGHT_SCREEN
+        self.setGeometry(0, 0, self.screen_width, self.screen_height)
+        self.shipPosition = QPointF()
         self.shipPosition.setX(Settings.POS_SHIP_X)
         self.shipPosition.setY(Settings.POS_SHIP_Y)
         self.setVisible(False)
         self.course = 0
+        self.actionPoint = QPointF()
+        self.circleVisible = False
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        if Settings.CIRCLE_COLOR is not None:
-            color_pen = QColor()
-            color_pen.setNamedColor(Settings.CIRCLE_COLOR)
-            pen = QPen(color_pen, 2, Qt.PenStyle.SolidLine)
-        else:
-            pen = QPen(Qt.GlobalColor.green, 2, Qt.PenStyle.SolidLine)
-        pen.setCapStyle(Qt.PenCapStyle.MPenCapStyle)
-        painter.setPen(pen)
-        painter.setRenderHint(QPainter.Antialiasing)
-        for qnt in range(1, Settings.FISHING_SIRCLE_QNT + 1):
-            rad = qnt * ((Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / \
-                  int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])) / Settings.FISHING_SIRCLE_QNT
-            painter.drawEllipse(self.shipPosition, rad, rad)
-            if Settings.NEED_RADIUS_TEXT:
-                realRadius = Settings.FISHING_SIRCLE_RADIUS / (Settings.FISHING_SIRCLE_QNT + 1 - qnt)
-                textPos = QPointF()
-                text = str(round(realRadius, 1)) + ' m'
-                textPos.setX(self.shipPosition.x() - len(text))
-                textPos.setY(self.shipPosition.y()  - rad - 2)
-                painter.drawText(textPos, text)
+
+        if self.circleVisible:
+            if Settings.CIRCLE_COLOR is not None:
+                color_pen = QColor()
+                color_pen.setNamedColor(Settings.CIRCLE_COLOR)
+                pen = QPen(color_pen, 2, Qt.PenStyle.SolidLine)
+            else:
+                pen = QPen(Qt.GlobalColor.green, 2, Qt.PenStyle.SolidLine)
+            pen.setCapStyle(Qt.PenCapStyle.MPenCapStyle)
+            painter.setPen(pen)
+            painter.setRenderHint(QPainter.Antialiasing)
+            for qnt in range(1, Settings.FISHING_SIRCLE_QNT + 1):
+                rad = qnt * ((Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / \
+                      int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1])) / Settings.FISHING_SIRCLE_QNT
+                painter.drawEllipse(self.shipPosition, rad, rad)
+                if Settings.NEED_RADIUS_TEXT:
+                    realRadius = Settings.FISHING_SIRCLE_RADIUS / (Settings.FISHING_SIRCLE_QNT + 1 - qnt)
+                    textPos = QPointF()
+                    text = str(round(realRadius, 1)) + ' m'
+                    textPos.setX(self.shipPosition.x() - len(text))
+                    textPos.setY(self.shipPosition.y()  - rad - 2)
+                    painter.drawText(textPos, text)
 
         if Settings.NEED_RADIUS_VECTOR:
             max_rad = (Settings.GRID_STEP * Settings.FISHING_SIRCLE_RADIUS) / int(
@@ -489,6 +506,43 @@ class Circles(QWidget):
             point_2 = QPointF(radius_point_x, radius_point_y)
             painter.drawLine(point_1, point_2)
 
+        if self.actionPoint:
+            #TODO добавить из серии, if coords in (scr_w, scr_h)
+            lines_pen = QPen(Qt.darkGray, 1, Qt.PenStyle.DashLine)
+            x_point, y_point = self.actionPoint.x(), self.actionPoint.y()
+            painter.setPen(lines_pen)
+            painter.drawLine(0, y_point, self.screen_width, y_point)
+            painter.drawLine(x_point, 0, x_point, self.screen_height)
+            white_width = 3
+            white_height = 12
+            black_pen = QPen(Qt.black, 2, Qt.PenStyle.SolidLine)
+            painter.setPen(black_pen)
+            painter.drawLine(x_point - white_height, y_point - white_width, x_point + white_height, y_point - white_width)
+            painter.drawLine(x_point - white_height, y_point + white_width, x_point + white_height, y_point + white_width)
+            painter.drawLine(x_point - white_width, y_point + white_height, x_point - white_width, y_point - white_height)
+            painter.drawLine(x_point + white_width, y_point + white_height, x_point + white_width, y_point - white_height)
+            white_pen = QPen(Qt.white, white_width, Qt.PenStyle.SolidLine)
+            painter.setPen(white_pen)
+            painter.drawLine(x_point - white_height, y_point, x_point + white_height, y_point)
+            painter.drawLine(x_point, y_point - white_height, x_point, y_point + white_height)
+
+
+
+
+    def setPointToAction(self, point=None, visible=None):
+        result = False
+        if visible == False:
+            self.actionPoint.setX()
+            self.actionPoint.setY()
+
+        if point is not None:
+            result = True
+
+        self.actionPoint = point
+        print("get!", self.actionPoint)
+        self.update()
+        return result
+
 
     def setShipPosition(self, x, y, rotation = 0):
         self.shipPosition.setX(x)
@@ -499,10 +553,17 @@ class Circles(QWidget):
     def checkVisible(self):
         if Settings.NEED_FISHING_CIRCLE == False:
             self.setVisible(False)
+            self.circleVisible = False
             self.update()
         else:
             self.setVisible(True)
+            self.circleVisible = True
             self.update()
+
+    def setVisibleLine(self, visible):
+        self.setVisible(visible)
+        self.update()
+
 
 
 class Main(QWidget):
@@ -533,7 +594,7 @@ class Main(QWidget):
         Settings.CENTR_LON = 0
         self.posX = None
         self.posY = None
-        self.supposedCentr = QPoint()
+        self.supposedCentr = QPointF()
         self.doCentrPixels()
         # Получим список координат
         self.labelMap = QLabel(self)
@@ -547,7 +608,7 @@ class Main(QWidget):
 
         #########
         #########
-        self.screen_old_pos = QPoint(screen_width/2, screen_height/2)
+        self.screen_old_pos = QPointF(screen_width/2, screen_height/2)
         self.labelPillowMap = QLabel(self)
         self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: green;')
         self.labelPillowMap.move(350, 210)
@@ -1077,8 +1138,11 @@ class MainWindow(QMainWindow):
     coordsSE = None
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        self.initSettings()
         self.main_window_height = app.primaryScreen().size().height()
         self.main_window_width = app.primaryScreen().size().width()
+        Settings.HEIGHT_SCREEN = self.main_window_height
+        Settings.WIDTH_SCREEN = self.main_window_width
         self.setWindowFlag(Qt.FramelessWindowHint)
         self.myWidget = Main()
         self.gridWidget = MapGrid()
@@ -1121,7 +1185,7 @@ class MainWindow(QMainWindow):
 
         self.labelLetterDepth = QLabel(self)
         self.labelLetterDepth.setGeometry(12, 20, 120, 20)
-        self.labelLetterDepth.setText("DEPTH    M")
+        self.labelLetterDepth.setText("DEPTH, M") #    M
         self.labelLetterDepth.setStyleSheet(styles.labelLetterDepth)
         self.labelLetterDepth.setGraphicsEffect(shadow)
 
@@ -1130,6 +1194,7 @@ class MainWindow(QMainWindow):
         self.labelDepth.setText("-.-")
         self.labelDepth.setStyleSheet(styles.labelDepth)
         self.labelDepth.setGraphicsEffect(shadow)
+
 
         self.serial = QSerialPort(self)
 
@@ -1161,7 +1226,7 @@ class MainWindow(QMainWindow):
         self.dataStart = False
         self.keepCenter = False
 
-        menu_button_width = 150
+        menu_button_width = 140
 
         self.menu = QMenu(self)
         self.menu.setFixedWidth(menu_button_width)
@@ -1175,7 +1240,7 @@ class MainWindow(QMainWindow):
         self.settingsMapsAction.triggered.connect(self.openMAPsettingsWindow)
         self.subMenuSettings.addAction(self.settingsMapsAction)
 
-        self.subMenuMaps = self.menu.addMenu('Maps ...')
+        self.subMenuMaps = self.menu.addMenu('Open map')
         self.depthMapAction = QAction('Depth', self)
         self.depthMapAction.triggered.connect(self.getDepthMapFile)
         self.subMenuMaps.addAction(self.depthMapAction)
@@ -1212,7 +1277,7 @@ class MainWindow(QMainWindow):
         self.ship_speed = 0.0
 
         lblInfoH = 30
-        lblInfoW = 210
+        lblInfoW = 190
         #        self.main_window_width
         #        self.main_window_height
 
@@ -1224,7 +1289,7 @@ class MainWindow(QMainWindow):
         self.labelInfoSOGdata = QLabel(self)
         self.labelInfoSOGdata.setStyleSheet(styles.labelInfoTopRight)
         self.labelInfoSOGdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.labelInfoSOGdata.setGeometry(100, self.main_window_height - 3*lblInfoH, 110, lblInfoH)
+        self.labelInfoSOGdata.setGeometry(100, self.main_window_height - 3*lblInfoH, lblInfoW - 100, lblInfoH)
 
         self.labelInfoSCALE = QLabel(self)
         self.labelInfoSCALE.setStyleSheet(styles.labelInfo)
@@ -1234,26 +1299,59 @@ class MainWindow(QMainWindow):
         self.labelInfoSCALEdata = QLabel(self)
         self.labelInfoSCALEdata.setStyleSheet(styles.labelInfoRight)
         self.labelInfoSCALEdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.labelInfoSCALEdata.setGeometry(100, self.main_window_height - 2*lblInfoH, 110, lblInfoH)
+        self.labelInfoSCALEdata.setGeometry(100, self.main_window_height - 2*lblInfoH, lblInfoW - 100, lblInfoH)
 
-
+        self.logDataBool = False
         self.labelInfoDISTANCE = QLabel(self)
         self.labelInfoDISTANCE.setStyleSheet(styles.labelInfo)
         self.labelInfoDISTANCE.setGeometry(0, self.main_window_height - lblInfoH, lblInfoW, lblInfoH)
-        self.labelInfoDISTANCE.setText("Distance")
+        self.labelInfoDISTANCE.setText("Logging")
 
         self.labelInfoDISTANCEdata = QLabel(self)
         self.labelInfoDISTANCEdata.setStyleSheet(styles.labelInfoRight)
         self.labelInfoDISTANCEdata.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.labelInfoDISTANCEdata.setGeometry(100, self.main_window_height - lblInfoH, 110, lblInfoH)
+        self.labelInfoDISTANCEdata.setGeometry(100, self.main_window_height - lblInfoH, lblInfoW - 100, lblInfoH)
 
         self.updateInfoLabels()
         self.currentDate = ''
         self.currentDepth = ''
-        self.logDataBool = False
         self.logList = []
         self.connection = self.initConnect()
         self.initTablesInDB(self.connection)
+
+        self.timer = QTimer()
+        self.timerCount = 2000
+        self.timer.timeout.connect(self.timeIsEnd)
+
+        self.press_point = None
+
+    def initSettings(self):
+        if not os.path.exists('settings'):
+            os.makedirs('settings')
+
+        path = os.path.join(os.getcwd(), 'settings', 'settings.ini')
+
+        self.settings = QSettings(path, QSettings.IniFormat)
+
+
+
+
+    def startTimer(self):
+        self.timer.start(self.timerCount)
+
+
+    def setPointToAction(self, point=None):
+        self.circles.setPointToAction(point)
+
+    def timeIsEnd(self):
+        print("send", self.mouse_old_pos)
+        self.setPointToAction(self.mouse_old_pos)
+        #TODO - еще проверять, виден ли кораблик!
+        self.circles.setVisibleLine(True)
+        self.timer.stop()
+        dialog = PointMap(self)
+        dialog.exec_()
+        dialog.show()
 
     def initTablesInDB(self, conn):
         cur = conn.cursor()
@@ -1271,6 +1369,7 @@ class MainWindow(QMainWindow):
 
         if not exists:
             nmea_data = {'settings_name': 'nmea_settings', 'data': '{"comport": "COM1", "baudrate": "9600"}'}
+            #map_data = {'settings_name': 'map_settings', 'data': '{"comport": "COM1", "baudrate": "9600"}'}
             cur = conn.cursor()
             cur.execute("INSERT INTO main_settings VALUES (:settings_name, :data)", nmea_data)
             conn.commit()
@@ -1356,8 +1455,13 @@ class MainWindow(QMainWindow):
 
     def updateInfoLabels(self):
         self.labelInfoSCALEdata.setText("{} m".format(str(int(Settings.GRID_SCALE[Settings.CURRENT_MASHTAB - 1]))))
-        self.labelInfoSOGdata.setText("{} km/h".format(str(round(self.ship_speed, 2))))
-        self.labelInfoDISTANCEdata.setText("0 m")
+        self.labelInfoSOGdata.setText("{} km/h".format(str(round(self.ship_speed, 1))))
+        if self.logDataBool:
+            self.labelInfoDISTANCEdata.setText("yes")
+            self.labelInfoDISTANCEdata.setStyleSheet(styles.labelInfoRightYes)
+        else:
+            self.labelInfoDISTANCEdata.setText("no")
+            self.labelInfoDISTANCEdata.setStyleSheet(styles.labelInfoRight)
 
     def getDepthMapFile(self):
         self.figure.clear()
@@ -1383,13 +1487,18 @@ class MainWindow(QMainWindow):
             self.contour_max_x = self.contour_data['x'][np.argmax(self.contour_data['x'])]
             self.contour_min_x = self.contour_data['x'][np.argmin(self.contour_data['x'])]
             self.contour_max_y = self.contour_data['y'][np.argmax(self.contour_data['y'])]
+            self.contour_max_z = self.contour_data['z'][np.argmax(self.contour_data['z'])]
             self.contour_min_y = self.contour_data['y'][np.argmin(self.contour_data['y'])]
-            print(self.contour_max_x, self.contour_min_x, self.contour_max_y, self.contour_min_y)
+            print(
+                #self.contour_max_x,
+                  #self.contour_min_x,
+                  #self.contour_max_y,
+                  #self.contour_min_y,
+                  "max_depth:", self.contour_max_z)
 
     def plot(self):
         if Settings.FILE_DEPTH_NAME is not None:
             tic1 = time.perf_counter()
-            print("clear!")
             self.figure.clear()
             #TODO - спорно... вообще тут разобраться...
             self.figure.clf()
@@ -1427,9 +1536,15 @@ class MainWindow(QMainWindow):
 
 
             self.Z = self.contour_data_fast.pivot_table(index='x', columns='y', values='z').T.values
+            #print(self.Z)
             self.X_unique = np.sort(self.contour_data_fast.x.unique())
             self.Y_unique = np.sort(self.contour_data_fast.y.unique())
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
+            #func = si.bisplev(self.X, self.Y, self.Z)
+
+            #z = np.take(func(38.047033039027504, 55.59210725456789), 0)
+            #print("ZZZZZZZZZZ", func)
+
             '''
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data.x.unique())
@@ -1437,7 +1552,7 @@ class MainWindow(QMainWindow):
             self.X, self.Y = np.meshgrid(self.X_unique, self.Y_unique)
             '''
             rcParams['toolbar'] = 'None'
-            print("self.Z", self.Z.size)
+            #print("self.Z", self.Z.size)
             if self.Z.size > 20:
 
                 # rcParams['figure.figsize'] = 20, 10 # sets plot size
@@ -1498,7 +1613,7 @@ class MainWindow(QMainWindow):
                 self.figure.clear()
                 self.canvas.draw()
             ticEND = time.perf_counter()
-            print("ALL_TIME", ticEND - tic1, "self.cp: ", tic4 - tic3, "self.ax.clabel", tic6 - tic5, "canvas.draw()", ticEND - tic6)
+            #print("ALL_TIME", ticEND - tic1, "self.cp: ", tic4 - tic3, "self.ax.clabel", tic6 - tic5, "canvas.draw()", ticEND - tic6)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -1508,16 +1623,24 @@ class MainWindow(QMainWindow):
             #self.myWidget.setScreenOldPos(self.myWidget.getCurrentScreenCenter())
             self.shipWidget.setShipOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
+            self.startTimer()
+        if event.button() == Qt.RightButton:
+            pos = self.myWidget.getCurrentLabelMapPos()
+            point = self.myWidget.getCoord(pos.x(), pos.y(),
+                                           event.pos().x(), event.pos().y())  # event.pos().y() - self.titleBarHeight*2
+            curLat1, curLon1 = point.split(', ')
+            print("click! 1: 2: ", curLat1, curLon1, point)
 
     def mouseReleaseEvent(self, event):
+        self.timer.stop()
         if event.button() == Qt.LeftButton:
             self.mouse_old_pos = None
             self.myWidget.doCentrPixels()
             if self.myWidget.getNewCenter() != '':
                 Settings.CENTR_LAT, Settings.CENTR_LON = self.myWidget.getNewCenter().split(', ')
             #self.myWidget.pillowLabelSetImage()
-        self.showStatusBarMessage()
-        self.plot()
+            self.showStatusBarMessage()
+            self.plot()
 
     def mouseMoveEvent(self, event):
         self.myWidget.makeMovingCenterFalse()
@@ -1539,6 +1662,8 @@ class MainWindow(QMainWindow):
         #self.plot()
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
+
+        self.timer.stop()
 
     def mouseDoubleClickEvent(self, event):
         #print("MOUSE MW:", event.pos())
@@ -1741,33 +1866,83 @@ class MainWindow(QMainWindow):
             print(e, ' NMEA2decimal ', strNMEA)
 
 
+class PointMap(QDialog):
+    def __init__(self, MainWindow):
+        super().__init__(parent=MainWindow)
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.setWindowTitle("Point options...")
+        self.mainWindow = MainWindow
+        windowW = 250
+        windowH = 100
+        self.setGeometry(0, 0, windowW, windowH)
+        #self.setAttribute(Qt.WA_TranslucentBackground)
+        #self.setWindowOpacity(0.2)
+        self.setStyleSheet("background-color:rgba(53,57,63);")
+
+
+        self.buttonSAVE = QPushButton(self)
+        self.buttonSAVE.setText("Save")
+        self.buttonSAVE.setStyleSheet(styles.map_button)
+        self.buttonSAVE.setGeometry(1, int(windowH - 40), int(windowW/3) - 1, 39)
+
+        self.buttonDIST = QPushButton(self)
+        self.buttonDIST.setText("Distance")
+        self.buttonDIST.setStyleSheet(styles.map_button)
+        self.buttonDIST.setGeometry(int(windowW/3 + 1), int(windowH - 40), int(windowW/3) - 1, 39)
+
+        self.buttonNOT = QPushButton(self)
+        self.buttonNOT.setText("Cancel")
+        self.buttonNOT.setStyleSheet(styles.map_button)
+        self.buttonNOT.setGeometry(int(2*windowW/3 + 1), int(windowH - 40), int(windowW/3) - 1, 39)
+        self.buttonNOT.clicked.connect(self.returnNOT)
+        self.setCenter()
+
+    def returnNOT(self):
+        self.mainWindow.setPointToAction()
+        self.close()
+
+
+    def setCenter(self):
+        resolution = QDesktopWidget().screenGeometry()
+        self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
+                  int((resolution.height() / 2) - (self.frameSize().height() / 2)))
+
+
+
 class SettingsMap(QDialog):
     def __init__(self, MainWindow):
         super().__init__(parent=MainWindow)
+        self.initSettings()
+
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.setStyleSheet(styles.map_dialog)
         self.mainWindow = MainWindow
         self.setWindowTitle("Map Settings")
-        self.setGeometry(0, 0, 420, 400)
+        windowW = 600
+        windowH = 300
+        self.setGeometry(0, 0, windowW, windowH)
         self.setCenter()
 
         self.base_y = 20
 
         self.labelNeedCircles = QLabel(self)
+        self.labelNeedCircles.setStyleSheet(styles.group_box_label)
         self.labelNeedCircles.setText('Circles:')
-        self.labelNeedCircles.move(5, self.base_y)
 
         self.checkCircles = QCheckBox(self)
-        self.checkCircles.move(70, self.base_y)
+        #self.checkCircles.move(70, self.base_y)
         if Settings.NEED_FISHING_CIRCLE:
             self.checkCircles.setCheckState(True)
         else:
             self.checkCircles.setCheckState(False)
 
         self.labelNeedVector = QLabel(self)
+        self.labelNeedVector.setStyleSheet(styles.group_box_label)
         self.labelNeedVector.setText('Vector:')
-        self.labelNeedVector.move(5, self.base_y + 30)
+        #self.labelNeedVector.move(5, self.base_y + 30)
 
         self.checkVector = QCheckBox(self)
-        self.checkVector.move(70, self.base_y + 30)
+        #self.checkVector.move(70, self.base_y + 30)
         if Settings.NEED_RADIUS_VECTOR:
             self.checkVector.setCheckState(True)
         else:
@@ -1775,30 +1950,30 @@ class SettingsMap(QDialog):
 
         self.labelQntCircles = QLabel(self)
         self.labelQntCircles.setText('Qnt circles:')
-        self.labelQntCircles.move(5, self.base_y + 60)
+        self.labelQntCircles.setStyleSheet(styles.group_box_label)
 
         self.labelQntCirclesCOUNT = QLabel(self)
+        self.labelQntCirclesCOUNT.setStyleSheet(styles.group_box_label)
         self.labelQntCirclesCOUNT.setText(str(Settings.FISHING_SIRCLE_QNT))
-        self.labelQntCirclesCOUNT.move(70, self.base_y + 60)
 
-        self.qnrCircles = QSlider(self)
-        self.qnrCircles.invertedControls()
-        self.qnrCircles.setMinimum(1)
-        self.qnrCircles.setMaximum(4)
-        self.qnrCircles.setPageStep(1)
-        self.qnrCircles.setSliderPosition(Settings.FISHING_SIRCLE_QNT)
-        self.qnrCircles.setTickInterval(1)
-        self.qnrCircles.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.qnrCircles.move(100, self.base_y + 55)
-        self.qnrCircles.valueChanged.connect(self.updateQntCircles)
+        self.qntCircles = QSlider(self)
+        self.qntCircles.invertedControls()
+        self.qntCircles.setMinimum(1)
+        self.qntCircles.setMaximum(4)
+        self.qntCircles.setPageStep(1)
+        #self.qntCircles.setSliderPosition(Settings.FISHING_SIRCLE_QNT)
+        self.qntCircles.setTickInterval(1)
+        self.qntCircles.setOrientation(QtCore.Qt.Orientation.Horizontal)
+        self.qntCircles.valueChanged.connect(self.updateQntCircles)
 
         self.labelRadCircles = QLabel(self)
+        self.labelRadCircles.setStyleSheet(styles.group_box_label)
         self.labelRadCircles.setText('Rad circle:')
-        self.labelRadCircles.move(5, self.base_y + 90)
+
 
         self.labelRadCirclesMetr = QLabel(self)
+        self.labelRadCirclesMetr.setStyleSheet(styles.group_box_label)
         self.labelRadCirclesMetr.setText(str(Settings.FISHING_SIRCLE_RADIUS))
-        self.labelRadCirclesMetr.move(70, self.base_y + 90)
 
         self.CirclesRad = QSlider(self)
         self.CirclesRad.invertedControls()
@@ -1808,68 +1983,174 @@ class SettingsMap(QDialog):
         self.CirclesRad.setSliderPosition(Settings.FISHING_SIRCLE_RADIUS)
         self.CirclesRad.setTickInterval(10)
         self.CirclesRad.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.CirclesRad.move(100, self.base_y + 85)
         self.CirclesRad.valueChanged.connect(self.updateRadCircles)
 
+        ###
         self.labelColorCircles = QLabel(self)
+        self.labelColorCircles.setStyleSheet(styles.group_box_label)
         self.labelColorCircles.setText('Color:')
-        self.labelColorCircles.move(5, self.base_y + 120)
 
         self.buttonColor = QPushButton(self)
+        self.buttonColor.setStyleSheet(styles.map_button)
         if Settings.CIRCLE_COLOR is not None:
             self.buttonColor.setStyleSheet(
                 "background-color:{};".format(Settings.CIRCLE_COLOR)
             )
-        self.buttonColor.setFixedSize(20, 20)
-        self.buttonColor.move(70, self.base_y + 115)
+        self.buttonColor.setFixedSize(30, 30)
         self.buttonColor.clicked.connect(self.colorDialog)
 
         self.labelPalette = QLabel(self)
+        self.labelPalette.setStyleSheet(styles.group_box_label)
         self.labelPalette.setText('Palette:')
-        self.labelPalette.move(5, self.base_y + 160)
 
         self.comboPalettes = QComboBox(self)
+        self.comboPalettes.setStyleSheet(styles.combo_box)
         self.comboPalettes.addItems(list(Settings.PLOT_PALETTE.keys()))
-        self.comboPalettes.move(70, self.base_y + 155)
 
         self.labelAlphaContour = QLabel(self)
+        self.labelAlphaContour.setStyleSheet(styles.group_box_label)
         self.labelAlphaContour.setText('Alpha contour:')
-        self.labelAlphaContour.move(5, self.base_y + 200)
 
         self.comboAlphaContour = QComboBox(self)
+        self.comboAlphaContour.setStyleSheet(styles.combo_box)
         self.comboAlphaContour.addItems(Settings.ALPHA_CONTOURS)
-        self.comboAlphaContour.move(70, self.base_y + 195)
 
         self.labelFreqLines = QLabel(self)
+        self.labelFreqLines.setStyleSheet(styles.group_box_label)
         self.labelFreqLines.setText('Freq lines:')
-        self.labelFreqLines.move(5, self.base_y + 240)
 
         self.comboFreqLines = QComboBox(self)
+        self.comboFreqLines.setStyleSheet(styles.combo_box)
         self.comboFreqLines.addItems(Settings.FREQUENCIES_LINES)
-        self.comboFreqLines.move(70, self.base_y + 235)
+        ####
+
+
+        self.groupBoxCircles = QGroupBox(self)
+        vbox = QHBoxLayout(self)
+        vbox.addWidget(self.labelNeedCircles)
+        vbox.addWidget(self.checkCircles)
+        vbox.addWidget(self.labelQntCircles)
+        vbox.addWidget(self.labelQntCirclesCOUNT)
+        vbox.addWidget(self.qntCircles)
+        vbox.addWidget(self.labelRadCircles)
+        vbox.addWidget(self.labelRadCirclesMetr)
+        vbox.addWidget(self.CirclesRad)
+        self.groupBoxCircles.setLayout(vbox)
+        self.groupBoxCircles.setGeometry(5, 15, windowW - 10, 50)
+        self.groupBoxCircles.setStyleSheet(styles.group_box)
+
+        self.groupBoxVector = QGroupBox(self)
+        vbox_vector = QHBoxLayout(self)
+        vbox_vector.addWidget(self.labelNeedVector)
+        vbox_vector.addWidget(self.checkVector)
+        self.groupBoxVector.setLayout(vbox_vector)
+        self.groupBoxVector.setGeometry(5, 70, 120, 50)
+        self.groupBoxVector.setStyleSheet(styles.group_box)
+
+        self.groupBoxContours = QGroupBox(self)
+        gridBox = QHBoxLayout(self)
+        gridBox.addWidget(self.labelColorCircles)
+        gridBox.addWidget(self.buttonColor)
+        gridBox.addWidget(self.labelPalette)
+        gridBox.addWidget(self.comboPalettes)
+        gridBox.addWidget(self.labelAlphaContour)
+        gridBox.addWidget(self.comboAlphaContour)
+        gridBox.addWidget(self.labelFreqLines)
+        gridBox.addWidget(self.comboFreqLines)
+        self.groupBoxContours.setLayout(gridBox)
+        self.groupBoxContours.setGeometry(5, 125, windowW - 10, 50)
+        self.groupBoxContours.setStyleSheet(styles.group_box)
+
+        self.load_settings()
 
         self.buttonOK = QPushButton(self)
-        self.buttonOK.setText("OK")
-        self.buttonOK.move(250, 350)
+        self.buttonOK.setGeometry(1, int(windowH - 40), int(windowW / 2), 39)
+        self.buttonOK.setStyleSheet(styles.map_button)
+        self.buttonOK.setText("Save")
         self.buttonOK.clicked.connect(self.returnOK)
+
         self.buttonNOT = QPushButton(self)
         self.buttonNOT.setText("Cancel")
-        self.buttonNOT.move(330, 350)
+        self.buttonNOT.setStyleSheet(styles.map_button)
+        self.buttonNOT.setGeometry(int(windowW/2 + 1), int(windowH - 40), int(windowW/2), 39)
         self.buttonNOT.clicked.connect(self.returnNOT)
+
+
+    def initSettings(self):
+        if not os.path.exists('settings'):
+            os.makedirs('settings')
+
+        path = os.path.join(os.getcwd(), 'settings', 'settings.ini')
+        self.settings = QSettings(path, QSettings.IniFormat)
+
+    def load_settings(self):
+        ### QNT CIRCLES
+        qnt_cirlces = self.settings.value('qnt_cirlces')
+        print("qnt_cirlces", qnt_cirlces)
+        if qnt_cirlces is not None:
+            self.qntCircles.setSliderPosition(int(qnt_cirlces))
+        else:
+            self.qntCircles.setSliderPosition(Settings.FISHING_SIRCLE_QNT)
+
+        ### COLOR CIRCLES
+        color_circles = self.settings.value('color_circles')
+        if color_circles is not None:
+            self.buttonColor.setStyleSheet('background-color: {};'.format(color_circles))
+            Settings.CIRCLE_COLOR = color_circles
+        else:
+            color_circles = '#28fd28'
+        self.color_circles = QColor(color_circles)
+
+        ### PALETTE
+        palette = self.settings.value('palette')
+        if palette is not None:
+            self.comboPalettes.setCurrentText(palette)
+            Settings.CURRENT_PALETTE = palette
+
+        ### freq_lines
+        freq_lines = self.settings.value('freq_lines')
+        if freq_lines is not None:
+            self.comboFreqLines.setCurrentText(str(freq_lines))
+
+        alpha_contour = self.settings.value('alpha_contour')
+        if alpha_contour is not None:
+            self.comboAlphaContour.setCurrentText(str(alpha_contour))
+
+
+    def save_settings(self):
+        vector = self.checkVector.isChecked()
+        circles = self.checkCircles.isChecked()
+        qnt_cirlces = self.qntCircles.value()
+        rad_circles = self.CirclesRad.value()
+        color_circles = self.color_circles.name()
+
+        palette = self.comboPalettes.currentText()
+        alpha_contour = float(self.comboAlphaContour.currentText())
+        freq_lines = float(self.comboFreqLines.currentText())
+
+        self.settings.setValue('vector', vector)
+        self.settings.setValue('circles', circles)
+        self.settings.setValue('qnt_cirlces', qnt_cirlces)
+        self.settings.setValue('rad_circles', rad_circles)
+        self.settings.setValue('color_circles', color_circles)
+        self.settings.setValue('palette', palette)
+        self.settings.setValue('alpha_contour', alpha_contour)
+        self.settings.setValue('freq_lines', freq_lines)
 
     def colorDialog(self):
         qi = QColorDialog()
-        color = qi.getColor(QColor(40, 253, 40), None)
-        print(color.name())
-        Settings.CIRCLE_COLOR = color.name()
+        self.color_circles = qi.getColor(QColor(40, 253, 40), None)
+        self.buttonColor.setStyleSheet('background-color: {};'.format(self.color_circles.name()))
+        print(self.color_circles.name())
+        Settings.CIRCLE_COLOR = self.color_circles.name()
 
     def updateRadCircles(self):
         self.labelRadCirclesMetr.setText(str(self.CirclesRad.value()))
         Settings.FISHING_SIRCLE_RADIUS = self.CirclesRad.value()
 
     def updateQntCircles(self):
-        self.labelQntCirclesCOUNT.setText(str(self.qnrCircles.value()))
-        Settings.FISHING_SIRCLE_QNT = self.qnrCircles.value()
+        self.labelQntCirclesCOUNT.setText(str(self.qntCircles.value()))
+        Settings.FISHING_SIRCLE_QNT = self.qntCircles.value()
 
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
@@ -1877,6 +2158,7 @@ class SettingsMap(QDialog):
                   int((resolution.height() / 2) - (self.frameSize().height() / 2)))
 
     def returnOK(self):
+        self.save_settings()
         if (self.checkCircles.isChecked() == True):
             Settings.NEED_FISHING_CIRCLE = True
         else:
@@ -1911,35 +2193,35 @@ class SettingsDialog(QDialog):
         self.labelPort = QLabel(self)
         self.labelPort.setStyleSheet(styles.labels)
         self.labelPort.setText('COM port:')
-        self.labelPort.move(15, 20)
+        self.labelPort.move(55, 20)
 
         self.comboPorts = QComboBox(self)
-        self.comboPorts.setGeometry(110, 14, 90, 30)
+        self.comboPorts.setGeometry(155, 14, 120, 30)
         self.comboPorts.setStyleSheet(styles.combobox)
         self.comboPorts.currentIndexChanged.connect(self.setPortName)
 
 
         self.labelPortName = QLabel(self)
         self.labelPortName.setText('COM port name')
-        self.labelPortName.move(210, 20)
+        self.labelPortName.move(35, 47)
 
         self.labelBaudRate = QLabel(self)
         self.labelBaudRate.setText('Baud rate:')
         self.labelBaudRate.setStyleSheet(styles.labels)
-        self.labelBaudRate.move(15, 70)
+        self.labelBaudRate.move(55, 73)
 
         self.comboBaud = QComboBox(self)
         self.comboBaud.addItems(Settings.BAUD_RATES)
         self.comboBaud.setStyleSheet(styles.combobox)
-        self.comboBaud.setGeometry(110, 64, 90, 30)
+        self.comboBaud.setGeometry(155, 67, 120, 30)
 
         self.labelDebugData = QLabel(self)
         self.labelDebugData.setText('Debug GPS:')
         self.labelDebugData.setStyleSheet(styles.labels)
-        self.labelDebugData.move(15, 120)
+        self.labelDebugData.move(55, 120)
 
         self.checkDebug = QCheckBox(self)
-        self.checkDebug.move(110, 120)
+        self.checkDebug.move(155, 122)
         self.checkDebug.setCheckState(False)
 
         self.portList = []
@@ -1949,14 +2231,14 @@ class SettingsDialog(QDialog):
         self.buttonOK = QPushButton(self)
         self.buttonOK.setStyleSheet(styles.buttons)
 
-        self.buttonOK.setText("OK")
-        self.buttonOK.setGeometry(int(windowX/2 - 90), int(windowY - 30), 80, 25)
+        self.buttonOK.setText("Save")
+        self.buttonOK.setGeometry(1, int(windowY - 40), int(windowX/2), 39)
         self.buttonOK.clicked.connect(self.returnOK)
 
         self.buttonNOT = QPushButton(self)
         self.buttonNOT.setStyleSheet(styles.buttons)
         self.buttonNOT.setText("Cancel")
-        self.buttonNOT.setGeometry(int(windowX/2 + 10), int(windowY - 30), 80, 25)
+        self.buttonNOT.setGeometry(int(windowX/2 + 1), int(windowY - 40), int(windowX/2), 39)
         self.buttonNOT.clicked.connect(self.returnNOT)
 
         self.setCenter()

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>narkomvod.jpg</name><color>88ffffff</color><Icon>
+<href>narkomvod.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.5639321014312</north>
+<south>55.5485674287966</south>
+<east>38.1257343292236</east>
+<west>38.0931186676025</west>
+</LatLonBox></GroundOverlay></kml>

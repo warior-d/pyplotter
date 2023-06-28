@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>dzer_18.jpg</name><color>88ffffff</color><Icon>
+<href>dzer_18.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.6433162660694</north>
+<south>55.6328965645068</south>
+<east>37.8926396369934</east>
+<west>37.8535330295563</west>
+</LatLonBox></GroundOverlay></kml>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>matyra_15.jpg</name><color>88ffffff</color><Icon>
+<href>matyra_15.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>52.6294683859059</north>
+<south>52.5830258614165</south>
+<east>39.7782325744629</east>
+<west>39.6821022033691</west>
+</LatLonBox></GroundOverlay></kml>

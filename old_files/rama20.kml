@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>rama20.jpg</name><color>88ffffff</color><Icon>
+<href>rama20.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.5723249128571</north>
+<south>55.5693328856525</south>
+<east>38.2396906614304</east>
+<west>38.2329073548317</west>
+</LatLonBox></GroundOverlay></kml>

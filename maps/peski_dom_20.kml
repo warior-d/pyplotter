@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>peski_dom_20.jpg</name><color>88ffffff</color><Icon>
+<href>peski_dom_20.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.2147625671291</north>
+<south>55.2123707840046</south>
+<east>38.761568069458</east>
+<west>38.7566569447517</west>
+</LatLonBox></GroundOverlay></kml>

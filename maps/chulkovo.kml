@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>chulkovo.jpg</name><color>88ffffff</color><Icon>
+<href>chulkovo.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.5969955156028</north>
+<south>55.5766222358059</south>
+<east>38.0774974822998</east>
+<west>38.0144548416138</west>
+</LatLonBox></GroundOverlay></kml>

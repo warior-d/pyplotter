@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>oka_shur.jpg</name><color>88ffffff</color><Icon>
+<href>oka_shur.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.0766720645089</north>
+<south>55.0567791905437</south>
+<east>38.8470339775085</east>
+<west>38.7715673446655</west>
+</LatLonBox></GroundOverlay></kml>

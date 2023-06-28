@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>mr_peski_19.jpg</name><color>88ffffff</color><Icon>
+<href>mr_peski_19.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.2319537726551</north>
+<south>55.1559148455419</south>
+<east>38.762469291687</east>
+<west>38.7418645620346</west>
+</LatLonBox></GroundOverlay></kml>

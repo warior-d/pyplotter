@@ -1,25 +1,66 @@
+################   POINT  DIALOG MENU   ##############
+
+
+
+
+
+################   MAP  DIALOG MENU   ##############
+map_dialog = """
+    background-color: rgba(55,85,112);
+    font-family: Arial;
+    color: rgba(230, 230, 230);
+"""
+
+map_button = """
+    background-color: rgba(86,98,111);
+    font-family: Arial;
+    color: rgba(230, 230, 230);
+    font-size: 18px;
+    border: 1px solid rgba(50, 50, 50, 120); 
+"""
+
+group_box = """
+    background-color: rgba(53,57,63);
+    font-family: Arial;
+    color: rgba(230, 230, 230);
+    font-size: 10px;
+    border: 0px;
+"""
+
+group_box_label = """
+    font-family: Arial;
+    color: rgba(230, 230, 230);
+    font-size: 15px;
+"""
+
+combo_box = """
+    font-family: Arial;
+    background-color: rgba(29,46,62);
+    color: rgba(230, 230, 230);
+    font-size: 15px;
+"""
+
+
 ################   NMEA  DIALOG MENU   ##############
 nmeadialog = """
-    background-color: rgba(100, 102, 100);
+    background-color: rgba(53,57,63);
     font-family: Arial;
     color: rgba(230, 230, 230);
     border: 2px;
-    border-radius: 5px;
     font-size: 10px;
 """
 
 buttons = """
-    background-color: rgba(10, 10, 10);
-    font-family: Trebuchet MS;
+    background-color: rgba(86,98,111);
+    font-family: Arial;
     color: rgba(230, 230, 230);
-    border: 4px;
-    font-size: 20px;
-    border-radius: 5%;
+    font-size: 18px;
+    border: 1px solid rgba(50, 50, 50, 120); 
 """
 
 labels = """
     font-family: Arial;
-    color: rgba(230, 230, 230);
+    color: rgba(182,186,191);
     font-weight: bold;
     font-size: 15px;
 """
@@ -49,24 +90,20 @@ QMenu {
     background-color: rgba(10, 10, 10, 150);
     font-family: Arial;
     color: rgba(230, 230, 230);
-    border: none;
-    padding:10px;
     text-align: center;
-}
-QMenu::item#connect {
-    background-color: rgba(10, 10, 10, 150);
-    padding:25px;
-    text-align: center;
-    font-size: 28px;
 }
 QMenu::item {
     background-color: rgba(10, 10, 10, 150);
-    padding:25px;
+    padding-top:25px;
+    padding-bottom:25px;
+    padding-left:15px;
+    padding-right:20px;
     text-align: center;
     font-size: 18px;
+    border-bottom: 1px solid rgba(50, 50, 50, 180); 
 }
 """
-
+#rgba(77, 77, 77, 180)
 ################   MENU BUTTON    ##############
 
 menuButtonStyle = """
@@ -146,6 +183,15 @@ labelInfoRight = """
     font-weight: bold;
     border: none;
     color: rgba(230, 230, 230);
+    padding-right: 5px;
+"""
+labelInfoRightYes = """
+    background-color: transparent;
+    font-family: Swis721 Cn BT;
+    font-size: 20px;
+    font-weight: bold;
+    border: none;
+    color: rgba(80, 200, 120);
     padding-right: 5px;
 """
 
