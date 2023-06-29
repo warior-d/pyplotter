@@ -1113,7 +1113,6 @@ class Login(QDialog):
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
         layout.addWidget(self.buttonGPS)
-        print(next(os.walk('.'))[1])
 
     def getPath(self):
         path = os.getcwd()
@@ -1798,10 +1797,12 @@ class MainWindow(QMainWindow):
                     print("3.2 waitingSerial conn True", rdy)
                 else:
                     print("3.3 waitingSerial conn not true")
-                    self.shipWidget.clearLabelShip()
-                    
+
             elif self.serial.isOpen() == True:
                 self.serial.close()
+                print("serial -> close!")
+                self.shipWidget.clearLabelShip()
+
         except Exception as e:
             print(e, ' waitingSerial')
 
