@@ -354,6 +354,10 @@ class LabelMapShip(QWidget):
             self.labelShip.setVisible(True)
         self.labelShip.moveLike(x, y, rotate)
 
+    def clearLabelShip(self):
+        if self.labelShip.isVisible():
+            self.labelShip.setVisible(False)
+
     def mooving(self, delta):
         if self.labelShip.isVisible():
             new_pos_label_ship = self.old_pos + delta
@@ -1794,6 +1798,8 @@ class MainWindow(QMainWindow):
                     print("3.2 waitingSerial conn True", rdy)
                 else:
                     print("3.3 waitingSerial conn not true")
+                    self.shipWidget.clearLabelShip()
+                    
             elif self.serial.isOpen() == True:
                 self.serial.close()
         except Exception as e:
