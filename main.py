@@ -624,10 +624,10 @@ class Main(QWidget):
         self.addImage()
 
         #########
-        #########
+        ######### TODO - убери это!!! border = 5 для анализа поставь!
         self.screen_old_pos = QPointF(screen_width/2, screen_height/2)
         self.labelPillowMap = QLabel(self)
-        self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 3px; border-color: green;')
+        self.labelPillowMap.setStyleSheet('border-style: solid; border-width: 0px; border-color: green;')
         self.labelPillowMap.move(350, 210)
         #self.addImagePillow()
         #########
