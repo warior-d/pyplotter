@@ -1068,12 +1068,13 @@ class Login(QDialog):
         Settings.DESCTOP_HEIGHT = screen_height
         print(Settings.DESCTOP_WIDHT, Settings.DESCTOP_HEIGHT)
         super(Login, self).__init__(parent)
+        path = self.getPath()
         self.setWindowTitle("Image Map")
         self.setFixedWidth(290)
         self.setFixedHeight(400)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet('background-color: white;')
-        path_map = os.path.join(os.getcwd(), 'icons', 'map.png')
+        path_map = os.path.join(path, 'icons', 'map.png')
         self.buttonLogin = QPushButton('', self)
         #self.buttonLogin.setIcon(QIcon('icons/map.png'))
         self.buttonLogin.setIcon(QIcon(path_map))
@@ -1082,7 +1083,7 @@ class Login(QDialog):
         self.buttonLogin.clicked.connect(self.handleLogin)
 
         self.buttonGPS = QPushButton('', self)
-        path_gps = os.path.join(os.getcwd(), 'icons', 'gps.jpg')
+        path_gps = os.path.join(path, 'icons', 'gps.jpg')
         #self.buttonGPS.setIcon(QIcon('icons/gps.jpg'))
         self.buttonGPS.setIcon(QIcon(path_gps))
         self.buttonGPS.setIconSize(QSize(114, 162))
@@ -1091,10 +1092,22 @@ class Login(QDialog):
 
         self.labelChose = QLabel(self)
         self.labelChose.setGeometry(0, -100, 250, 300)
-        self.labelChose.setText(path_gps)
+        self.labelChose.setText(path_map)
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
         layout.addWidget(self.buttonGPS)
+        print(next(os.walk('.'))[1])
+
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
 
     def startGPS(self):
         pass
