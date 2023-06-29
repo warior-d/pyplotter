@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml><GroundOverlay><name>mr_elino.jpg</name><color>88ffffff</color><Icon>
+<href>mr_elino.jpg</href>
+<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
+<north>55.2282704589391</north>
+<south>55.2090713258552</south>
+<east>38.7546157836914</east>
+<west>38.7395417690277</west>
+</LatLonBox></GroundOverlay></kml>

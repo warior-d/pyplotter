@@ -3,7 +3,8 @@
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QCheckBox, \
-    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout, QGroupBox, QGridLayout
+    QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout, QGroupBox, QGridLayout, \
+    QGraphicsItem, QGraphicsScene, QGraphicsView, QGraphicsSimpleTextItem, QGraphicsTextItem
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -15,7 +16,7 @@ from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
 from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF, QSettings
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont, QImage
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont, QImage, QBrush
 from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
 from datetime import *
 from PyQt5.QtCore import QTime, QTimer, QDateTime
@@ -1230,6 +1231,26 @@ class MainWindow(QMainWindow):
         self.labelDepth.setStyleSheet(styles.labelDepth)
         self.labelDepth.setGraphicsEffect(shadow)
 
+
+
+        '''
+        self.scene = QGraphicsScene()
+        graphView = QGraphicsView(self.scene, self)
+        graphView.setGeometry(0, 120, 150, 170)
+        self.qText = QGraphicsSimpleTextItem()
+        self.qText.setText("-.-")
+        self.qText.boundingRect()
+        font = QFont('Arial', pointSize=55)
+        font.setBold(True)
+        brush = QBrush(Qt.SolidPattern)
+        brush.setColor(QColor(168, 34, 3))
+        pen = QPen()
+        pen.setColor(QColor(0, 0, 0))
+        self.qText.setBrush(brush)
+        self.qText.setPen(pen)
+        self.qText.setFont(font)
+        self.scene.addItem(self.qText)
+        '''
 
         self.serial = QSerialPort(self)
 
