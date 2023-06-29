@@ -39,6 +39,8 @@ from PIL import Image, ImageOps, ImageFilter
 from PIL.ImageQt import ImageQt
 import sqlite3
 
+from PyQt5.QtGui import QCursor
+
 
 def getCoordsFromKML(kmlfile):
     tree = ET.parse(kmlfile)
@@ -1171,6 +1173,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.initSettings()
+        self.path = self.getPath()
         self.main_window_height = app.primaryScreen().size().height()
         self.main_window_width = app.primaryScreen().size().width()
         Settings.HEIGHT_SCREEN = self.main_window_height
@@ -1293,6 +1296,10 @@ class MainWindow(QMainWindow):
         self.addLogAction.triggered.connect(self.writeLogs)
         self.menu.addAction(self.addLogAction)
 
+        self.addScrshotAction = QAction('Screenshot', self)
+        self.addScrshotAction.triggered.connect(self.screenShot)
+        self.menu.addAction(self.addScrshotAction)
+
         ##### EXIT #####
         self.exitAction = QAction('Exit', self)
         self.exitAction.triggered.connect(qApp.quit)
@@ -1357,7 +1364,32 @@ class MainWindow(QMainWindow):
 
         self.press_point = None
 
+        path_coursor = os.path.join(self.path, 'icons', 'coursor.png')
+        coursor_pix = QPixmap(path_coursor)
+        coursor = QCursor(coursor_pix)
+        self.setCursor(coursor)
+
+
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
+
+    def screenShot(self):
+        date = datetime.now()
+        filename = date.strftime('%Y-%m-%d_%H-%M-%S.png')
+        path_screenshot = os.path.join(self.path, 'screenshots', filename)
+        p = self.grab()
+        p.save(path_screenshot, 'png')
+
     def initSettings(self):
+        print("MW. Init Settings")
         if not os.path.exists('settings'):
             os.makedirs('settings')
 
@@ -1458,6 +1490,7 @@ class MainWindow(QMainWindow):
         self.myWidget.addImage(fromParent = True)
 
     def writeLogs(self):
+
         if self.logDataBool:
             self.logDataBool = False
         else:
