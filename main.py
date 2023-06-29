@@ -185,9 +185,22 @@ class LabelShip(QLabel):
     def __init__(self, parent):
         super().__init__(parent=parent)
         # self.move(100, 100)
+        path = self.getPath()
         self.setScaledContents(True)
-        self.pix = QPixmap("icons/lodka_med.png")
+        path_ship = os.path.join(path, 'icons', 'lodka_med.png')
+        self.pix = QPixmap(path_ship)
         self.setPixmap(self.pix)
+
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
 
     def getPos(self):
         dx = self.width() / 2
@@ -1090,9 +1103,9 @@ class Login(QDialog):
         self.buttonGPS.setFixedSize(114, 162)
         self.buttonGPS.clicked.connect(self.startGPS)
 
-        self.labelChose = QLabel(self)
-        self.labelChose.setGeometry(0, -100, 250, 300)
-        self.labelChose.setText(path_map)
+        #self.labelChose = QLabel(self)
+        #self.labelChose.setGeometry(0, -100, 250, 300)
+        #self.labelChose.setText(path_map)
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
         layout.addWidget(self.buttonGPS)
