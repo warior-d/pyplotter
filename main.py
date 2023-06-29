@@ -1090,8 +1090,8 @@ class Login(QDialog):
         self.buttonGPS.clicked.connect(self.startGPS)
 
         self.labelChose = QLabel(self)
-        self.labelChose.setGeometry(80, 320, 180, 300)
-        self.labelChose.setText("Chose Map")
+        self.labelChose.setGeometry(0, -100, 250, 300)
+        self.labelChose.setText(path_gps)
         layout = QHBoxLayout(self)
         layout.addWidget(self.buttonLogin)
         layout.addWidget(self.buttonGPS)
