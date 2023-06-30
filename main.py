@@ -157,7 +157,7 @@ class Settings():
     ALPHA_CONTOUR = 1
     ALPHA_CONTOURS = ["1", "0.75", "0.5", "0.25"]
     FREQUENCIES_LINES = ["1", "0.5", "0.25"]
-    DEPTH_LINES  = ["1", "0.5"]
+    DEPTH_LINES  = ["1", "0.5", "0.25"]
     CURRENT_FREQUENCY_LINES = 1
     BASE_NMEA = {'comport': 'COM1', 'baudrate': '9600'}
     HEIGHT_SCREEN = None
@@ -1667,18 +1667,18 @@ class MainWindow(QMainWindow):
                 self.cp = self.ax.contour(self.X, self.Y, self.Z,
                                           levels=levels,
                                           colors=line_colors,
-                                          linewidths=0.3)
+                                          linewidths=0.4)
                 tic4 = time.perf_counter()
                 # количество градаций глубин для подписей
                 clevels = []
-                for i in arange(0, self.maxDepth + 1, 0.5):
+                for i in arange(0, self.maxDepth + 1, float(self.settings.value('depth_lines'))):
                     clevels.append(i)
 
                 # подписи линий
                 tic5 = time.perf_counter()
                 self.ax.clabel(self.cp,
                                fontsize=7,
-                               colors= 'black', #line_colors,
+                               colors='black', #line_colors,
                                levels=clevels,
                                # inline=False,
                                inline_spacing=2,
@@ -2008,7 +2008,7 @@ class SettingsMap(QDialog):
         self.setStyleSheet(styles.map_dialog)
         self.mainWindow = MainWindow
         self.setWindowTitle("Map Settings")
-        windowW = 600
+        windowW = 700
         windowH = 300
         self.setGeometry(0, 0, windowW, windowH)
         self.setCenter()
@@ -2107,7 +2107,7 @@ class SettingsMap(QDialog):
 
         self.labelFreqLines = QLabel(self)
         self.labelFreqLines.setStyleSheet(styles.group_box_label)
-        self.labelFreqLines.setText('Fr line:')
+        self.labelFreqLines.setText('Freq line:')
 
         self.comboFreqLines = QComboBox(self)
         self.comboFreqLines.setStyleSheet(styles.combo_box)
@@ -2155,8 +2155,8 @@ class SettingsMap(QDialog):
         gridBox.addWidget(self.comboAlphaContour)
         gridBox.addWidget(self.labelFreqLines)
         gridBox.addWidget(self.comboFreqLines)
-        #gridBox.addWidget(self.labelDepthLines)
-        #gridBox.addWidget(self.comboDepthLines)
+        gridBox.addWidget(self.labelDepthLines)
+        gridBox.addWidget(self.comboDepthLines)
         self.groupBoxContours.setLayout(gridBox)
         self.groupBoxContours.setGeometry(5, 125, windowW - 10, 50)
         self.groupBoxContours.setStyleSheet(styles.group_box)
@@ -2227,6 +2227,13 @@ class SettingsMap(QDialog):
         if alpha_contour is not None:
             self.comboAlphaContour.setCurrentText(str(alpha_contour))
 
+        ### freq isolines depth
+        depth_lines = self.settings.value('depth_lines')
+        if depth_lines is not None:
+            self.comboDepthLines.setCurrentText(str(depth_lines))
+
+
+
 
     def save_settings(self):
         vector = self.checkVector.isChecked()
@@ -2238,6 +2245,7 @@ class SettingsMap(QDialog):
         palette = self.comboPalettes.currentText()
         alpha_contour = float(self.comboAlphaContour.currentText())
         freq_lines = float(self.comboFreqLines.currentText())
+        depth_lines = float(self.comboDepthLines.currentText())
 
         self.settings.setValue('vector', vector)
         self.settings.setValue('circles', circles)
@@ -2247,6 +2255,7 @@ class SettingsMap(QDialog):
         self.settings.setValue('palette', palette)
         self.settings.setValue('alpha_contour', alpha_contour)
         self.settings.setValue('freq_lines', freq_lines)
+        self.settings.setValue('depth_lines', depth_lines)
 
     def colorDialog(self):
         qi = QColorDialog()
