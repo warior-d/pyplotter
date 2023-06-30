@@ -157,6 +157,7 @@ class Settings():
     ALPHA_CONTOUR = 1
     ALPHA_CONTOURS = ["1", "0.75", "0.5", "0.25"]
     FREQUENCIES_LINES = ["1", "0.5", "0.25"]
+    DEPTH_LINES  = ["1", "0.5"]
     CURRENT_FREQUENCY_LINES = 1
     BASE_NMEA = {'comport': 'COM1', 'baudrate': '9600'}
     HEIGHT_SCREEN = None
@@ -1173,8 +1174,8 @@ class MainWindow(QMainWindow):
     coordsSE = None
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.initSettings()
         self.path = self.getPath()
+        self.initSettings()
         self.main_window_height = app.primaryScreen().size().height()
         self.main_window_width = app.primaryScreen().size().width()
         Settings.HEIGHT_SCREEN = self.main_window_height
@@ -1410,15 +1411,13 @@ class MainWindow(QMainWindow):
         p.save(path_screenshot, 'png')
 
     def initSettings(self):
+        filename = 'settings.ini'
+        path_to_folder = os.path.join(self.path, 'settings')
         print("MW. Init Settings")
-        if not os.path.exists('settings'):
-            os.makedirs('settings')
-
-        path = os.path.join(os.getcwd(), 'settings', 'settings.ini')
-
-        self.settings = QSettings(path, QSettings.IniFormat)
-
-
+        if not os.path.exists(path_to_folder):
+            os.makedirs(path_to_folder)
+        path_settings = os.path.join(self.path, 'settings', filename)
+        self.settings = QSettings(path_settings, QSettings.IniFormat)
 
 
     def startTimer(self):
@@ -1644,10 +1643,10 @@ class MainWindow(QMainWindow):
                 # rcParams['figure.figsize'] = 20, 10 # sets plot size
                 self.ax = self.figure.add_subplot(111)
 
-                self.cmap = ListedColormap(Settings.PLOT_PALETTE[Settings.CURRENT_PALETTE])
+                self.cmap = ListedColormap(Settings.PLOT_PALETTE[self.settings.value('palette')])
                 self.depth_arr = []
 
-                for i in arange(0, self.maxDepth + 1, float(Settings.CURRENT_FREQUENCY_LINES)):
+                for i in arange(0, self.maxDepth + 1, float(self.settings.value('freq_lines'))):
                     self.depth_arr.append(i)
                 levels = np.array(self.depth_arr)
 
@@ -1656,7 +1655,7 @@ class MainWindow(QMainWindow):
                 self.cpf = self.ax.contourf(self.X, self.Y, self.Z,
                                             levels,
                                             cmap=self.cmap,
-                                            alpha=Settings.ALPHA_CONTOUR,
+                                            alpha=float(self.settings.value('alpha_contour')),
                                             #antialiased=True,
                                             #nchunk=40,
                                             algorithm='mpl2014'
@@ -1672,7 +1671,7 @@ class MainWindow(QMainWindow):
                 tic4 = time.perf_counter()
                 # количество градаций глубин для подписей
                 clevels = []
-                for i in arange(0, self.maxDepth + 1, 1):
+                for i in arange(0, self.maxDepth + 1, 0.5):
                     clevels.append(i)
 
                 # подписи линий
@@ -2002,6 +2001,7 @@ class PointMap(QDialog):
 class SettingsMap(QDialog):
     def __init__(self, MainWindow):
         super().__init__(parent=MainWindow)
+        self.path = self.getPath()
         self.initSettings()
 
         self.setWindowFlag(Qt.FramelessWindowHint)
@@ -2099,7 +2099,7 @@ class SettingsMap(QDialog):
 
         self.labelAlphaContour = QLabel(self)
         self.labelAlphaContour.setStyleSheet(styles.group_box_label)
-        self.labelAlphaContour.setText('Alpha contour:')
+        self.labelAlphaContour.setText('Alpha:')
 
         self.comboAlphaContour = QComboBox(self)
         self.comboAlphaContour.setStyleSheet(styles.combo_box)
@@ -2107,11 +2107,19 @@ class SettingsMap(QDialog):
 
         self.labelFreqLines = QLabel(self)
         self.labelFreqLines.setStyleSheet(styles.group_box_label)
-        self.labelFreqLines.setText('Freq lines:')
+        self.labelFreqLines.setText('Fr line:')
 
         self.comboFreqLines = QComboBox(self)
         self.comboFreqLines.setStyleSheet(styles.combo_box)
         self.comboFreqLines.addItems(Settings.FREQUENCIES_LINES)
+
+        self.labelDepthLines = QLabel(self)
+        self.labelDepthLines.setStyleSheet(styles.group_box_label)
+        self.labelDepthLines.setText('Depth line:')
+
+        self.comboDepthLines = QComboBox(self)
+        self.comboDepthLines.setStyleSheet(styles.combo_box)
+        self.comboDepthLines.addItems(Settings.DEPTH_LINES)
         ####
 
 
@@ -2147,6 +2155,8 @@ class SettingsMap(QDialog):
         gridBox.addWidget(self.comboAlphaContour)
         gridBox.addWidget(self.labelFreqLines)
         gridBox.addWidget(self.comboFreqLines)
+        #gridBox.addWidget(self.labelDepthLines)
+        #gridBox.addWidget(self.comboDepthLines)
         self.groupBoxContours.setLayout(gridBox)
         self.groupBoxContours.setGeometry(5, 125, windowW - 10, 50)
         self.groupBoxContours.setStyleSheet(styles.group_box)
@@ -2165,13 +2175,24 @@ class SettingsMap(QDialog):
         self.buttonNOT.setGeometry(int(windowW/2 + 1), int(windowH - 40), int(windowW/2), 39)
         self.buttonNOT.clicked.connect(self.returnNOT)
 
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
 
     def initSettings(self):
-        if not os.path.exists('settings'):
-            os.makedirs('settings')
-
-        path = os.path.join(os.getcwd(), 'settings', 'settings.ini')
-        self.settings = QSettings(path, QSettings.IniFormat)
+        filename = 'settings.ini'
+        path_to_folder = os.path.join(self.path, 'settings')
+        print("SettingsMap. Init Settings")
+        if not os.path.exists(path_to_folder):
+            os.makedirs(path_to_folder)
+        path_settings = os.path.join(self.path, 'settings', filename)
+        self.settings = QSettings(path_settings, QSettings.IniFormat)
 
     def load_settings(self):
         ### QNT CIRCLES
