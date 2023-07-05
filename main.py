@@ -2077,7 +2077,6 @@ class PointMap(QDialog):
 class Keyboard(QDialog):
     def __init__(self, PointMap):
         super().__init__(parent=PointMap)
-        print("8888")
         self.setWindowFlag(Qt.FramelessWindowHint)
         self.mainWindow = PointMap
         windowW = 900
@@ -2109,8 +2108,8 @@ class Keyboard(QDialog):
         self.buttonNOT.setText("NO")
         self.buttonNOT.setStyleSheet(styles.map_button)
         self.buttonNOT.clicked.connect(self.returnNOT)
-        hor_lay.addWidget(self.buttonOK)
-        hor_lay.addWidget(self.buttonNOT)
+        hor_lay.addWidget(self.buttonOK, alignment=QtCore.Qt.AlignBottom)
+        hor_lay.addWidget(self.buttonNOT, alignment=QtCore.Qt.AlignBottom)
 
         vert_lay.addLayout(hor_lay)
 
@@ -2130,7 +2129,7 @@ class Keyboard(QDialog):
 'q','w','e','r','t','y','u','i','o','p',
 'UP','a','s','d','f','g','h','j','k','l',
 '.','z','x','c','v','b','n','m','-','=',
-'','','','','','PRB','Backsp','','','']
+'','','','PRB','','','','Backsp']
 
         positions = [(i, j) for i in range(5) for j in range(10)]
         for position, name in zip(positions, names):
@@ -2142,12 +2141,15 @@ class Keyboard(QDialog):
             if name == 'UP':
                 button.setCheckable(True)
             button.clicked.connect(self.clickButton)
-            self.grid.addWidget(button, *position, alignment=QtCore.Qt.AlignCenter)
+            if name == 'PRB':
+                button.setFixedWidth(250)
+                self.grid.addWidget(button, *position, 1, 4, alignment=QtCore.Qt.AlignCenter)
+            else:
+                self.grid.addWidget(button, *position, alignment=QtCore.Qt.AlignCenter)
 
     def clickButton(self):
         butt = self.sender()
         self.button_check = str(butt.objectName())
-        print(self.button_check)
         if self.button_check not in ('Backsp','UP','PRB'):
             if self.upper_text:
                 self.button_check = self.button_check.upper()
