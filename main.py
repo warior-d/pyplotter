@@ -2179,7 +2179,7 @@ class FishIcons(QDialog):
         self.setWindowFlag(Qt.FramelessWindowHint)
         self.mainWindow = PointMap
         windowW = 250
-        windowH = 200
+        windowH = 180
         self.setGeometry(0, 0, windowW, windowH)
         self.setStyleSheet("background-color:rgba(53,57,63);")
         #TODO - ниже нужно перенести в Point, так будет удобнее!
@@ -2192,7 +2192,7 @@ class FishIcons(QDialog):
 
         self.setButtons(icons_width, icons_height, icon_param)
         self.setLayout(self.grid)
-
+        '''
         self.buttonSAVE = QPushButton(self)
         self.buttonSAVE.setText("Ok")
         self.buttonSAVE.setStyleSheet(styles.map_button)
@@ -2204,6 +2204,7 @@ class FishIcons(QDialog):
         self.buttonNOT.setStyleSheet(styles.map_button)
         self.buttonNOT.setGeometry(int(windowW/2 + 1), int(windowH - 30), int(windowW/2) - 1, 29)
         self.buttonNOT.clicked.connect(self.returnNOT)
+        '''
         self.setCenter()
         self.button_check = ""
 
@@ -2233,6 +2234,7 @@ class FishIcons(QDialog):
     def clickButton(self):
         butt = self.sender()
         self.button_check = str(butt.objectName())
+        self.close()
 
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
@@ -2249,13 +2251,14 @@ class FishIcons(QDialog):
             path = os.path.join(os.getcwd(), 'pyplotter')
         return path
 
+    '''
     def returnNOT(self):
         self.button_check = ""
         self.close()
 
     def returnOK(self):
         self.close()
-
+    '''
 
 class SettingsMap(QDialog):
     def __init__(self, MainWindow):
