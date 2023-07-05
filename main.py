@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QFileDialog, QLabel, QWidget, QMainWindow, QApplication, QSlider, \
     QAction, qApp, QToolBar, QStackedWidget, QPushButton, QDesktopWidget, QComboBox, QCheckBox, \
     QTextEdit, QTextBrowser, QStackedLayout, QColorDialog, QMenu, QToolButton, QVBoxLayout, QGroupBox, QGridLayout, \
-    QGraphicsItem, QGraphicsScene, QGraphicsView, QGraphicsSimpleTextItem, QGraphicsTextItem
+    QGraphicsItem, QGraphicsScene, QGraphicsView, QGraphicsSimpleTextItem, QGraphicsTextItem, QLineEdit, QSpacerItem
 # import newReady as myWidget
 from pathlib import Path
 from PyQt5 import QtWidgets, QtCore, QtSerialPort
@@ -15,9 +15,9 @@ from geopy import Point
 from geopy.distance import geodesic, distance
 import xml.etree.ElementTree as ET
 from math import atan2, degrees, pi, sin, cos, radians
-from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF, QSettings
+from PyQt5.QtCore import Qt, QPoint, QRect, QIODevice, QSize, QPointF, QSettings, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon, QFont, QImage, QBrush
-from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar
+from PyQt5.Qt import QTransform, QStyle, QStyleOptionTitleBar, QSizePolicy
 from datetime import *
 from PyQt5.QtCore import QTime, QTimer, QDateTime
 import time
@@ -1187,7 +1187,7 @@ class MainWindow(QMainWindow):
         self.gridW = GridWidget()
         self.circles = Circles()
         self.whiteBack = WhiteBack()
-
+        self.currentPointToSave = QPointF()
         #####
         self.figure = plt.figure(clear=True)
         self.figure.set_alpha(0)
@@ -1378,7 +1378,6 @@ class MainWindow(QMainWindow):
         self.currentDepth = ''
         self.logList = []
         self.connection = self.initConnect()
-        self.initTablesInDB(self.connection)
 
         self.timer = QTimer()
         self.timerCount = 2000
@@ -1386,11 +1385,10 @@ class MainWindow(QMainWindow):
 
         self.press_point = None
 
-        path_coursor = os.path.join(self.path, 'icons', 'coursor.png')
+        path_coursor = os.path.join(self.path, 'icons', 'coursor1.png')
         coursor_pix = QPixmap(path_coursor)
         coursor = QCursor(coursor_pix)
         self.setCursor(coursor)
-
 
     def getPath(self):
         path = os.getcwd()
@@ -1401,7 +1399,6 @@ class MainWindow(QMainWindow):
         if not is_home:
             path = os.path.join(os.getcwd(), 'pyplotter')
         return path
-
 
     def screenShot(self):
         date = datetime.now()
@@ -1419,10 +1416,8 @@ class MainWindow(QMainWindow):
         path_settings = os.path.join(self.path, 'settings', filename)
         self.settings = QSettings(path_settings, QSettings.IniFormat)
 
-
     def startTimer(self):
         self.timer.start(self.timerCount)
-
 
     def setPointToAction(self, point=None):
         self.circles.setPointToAction(point)
@@ -1436,27 +1431,29 @@ class MainWindow(QMainWindow):
         dialog = PointMap(self)
         dialog.exec_()
         dialog.show()
+        if dialog.icon_name != '':
+            print("USPEKH", dialog.icon_name, dialog.full_coords)
+            date = datetime.now()
+            filename = date.strftime('%Y-%m-%d_%H-%M-%S')
+            data = {"name": "", "latitude": "", "longitude": "", "icon": ""}
+            data["name"] = filename
+            lat, lon = dialog.full_coords.split(',')
+            data["latitude"] = float(lat)
+            data["longitude"] = float(lon)
+            data["icon"] = dialog.icon_name
+            data["description"] = dialog.description
+            print(data)
+            self.insert2MP(self.connection, data)
 
-    def initTablesInDB(self, conn):
+    def insert2MP(self, conn, data):
         cur = conn.cursor()
-        exists = False
         try:
-            create = cur.execute("""CREATE TABLE main_settings(
-                settings_name TEXT,
-                data TEXT
-               );
-            """)
+            print(data)
+            cur.execute("INSERT INTO map_points VALUES (:name, :latitude, :longitude, :icon, :description)", data)
         except Exception as e:
             print(e)
-            exists = True
         conn.commit()
 
-        if not exists:
-            nmea_data = {'settings_name': 'nmea_settings', 'data': '{"comport": "COM1", "baudrate": "9600"}'}
-            #map_data = {'settings_name': 'map_settings', 'data': '{"comport": "COM1", "baudrate": "9600"}'}
-            cur = conn.cursor()
-            cur.execute("INSERT INTO main_settings VALUES (:settings_name, :data)", nmea_data)
-            conn.commit()
 
     def insertDB(self, conn, table, data):
         cur = conn.cursor()
@@ -1467,14 +1464,12 @@ class MainWindow(QMainWindow):
             print(e)
         conn.commit()
 
-
     def initConnect(self):
         if not os.path.exists('db'):
             os.makedirs('db')
 
         path = os.path.join(os.getcwd(), 'db', 'main_db.db')
         connection = sqlite3.connect(path)
-        print(connection)
         return connection
 
     def addImageDialog(self):
@@ -1708,6 +1703,12 @@ class MainWindow(QMainWindow):
             #self.myWidget.setScreenOldPos(self.myWidget.getCurrentScreenCenter())
             self.shipWidget.setShipOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
+
+            current_pos = self.myWidget.getCurrentLabelMapPos()
+            current_lat, current_lon = self.myWidget.getCoord(current_pos.x(), current_pos.y(),
+                                           event.pos().x(), event.pos().y()).split(', ')
+            self.currentPointToSave.setX(float(current_lat))
+            self.currentPointToSave.setY(float(current_lon))
             self.startTimer()
         if event.button() == Qt.RightButton:
             pos = self.myWidget.getCurrentLabelMapPos()
@@ -1954,6 +1955,15 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(e, ' NMEA2decimal ', strNMEA)
 
+class MyQLineEdit(QLineEdit):
+    clicked = pyqtSignal()
+
+    def __init__(self, widget):
+        super().__init__(widget)
+
+    def mousePressEvent(self, QMouseEvent):
+        self.clicked.emit()
+
 
 class PointMap(QDialog):
     def __init__(self, MainWindow):
@@ -1961,18 +1971,51 @@ class PointMap(QDialog):
         self.setWindowFlag(Qt.FramelessWindowHint)
         self.setWindowTitle("Point options...")
         self.mainWindow = MainWindow
-        windowW = 250
-        windowH = 100
+        self.path = self.getPath()
+        path_images = os.path.join(self.path, 'icons', 'fishIcons.png')
+        self.pixmap_icons = QPixmap(path_images)
+        windowW = 330
+        windowH = 150
         self.setGeometry(0, 0, windowW, windowH)
         #self.setAttribute(Qt.WA_TranslucentBackground)
         #self.setWindowOpacity(0.2)
         self.setStyleSheet("background-color:rgba(53,57,63);")
 
 
+        self.labelPoint = QLabel(self)
+        self.labelPoint.setText("Point:")
+        self.labelPoint.setStyleSheet(styles.map_button)
+        self.labelPoint.setGeometry(1, 20, int(windowW / 5) - 1, 39)
+
+        self.labelPointLatLon = QLabel(self)
+        self.labelPointLatLon.setStyleSheet(styles.map_button)
+        coords_str = str(round(self.mainWindow.currentPointToSave.x(), 6)) + ", " + str(round(self.mainWindow.currentPointToSave.y(), 6))
+        self.full_coords = str(self.mainWindow.currentPointToSave.x()) + "," + str(self.mainWindow.currentPointToSave.y())
+        self.labelPointLatLon.setText(coords_str)
+        self.labelPointLatLon.setGeometry(70, 20, 190, 39)
+
+        self.buttonIMAGE = QPushButton(self)
+        self.buttonIMAGE.setStyleSheet(styles.map_button)
+        self.buttonIMAGE.setText("IMG")
+        self.buttonIMAGE.setGeometry(265, 20, 60, 39)
+        self.buttonIMAGE.clicked.connect(self.choseImage)
+
+        self.labelText = QLabel(self)
+        self.labelText.setText("Descr:")
+        self.labelText.setStyleSheet(styles.map_button)
+        self.labelText.setGeometry(1, 67, int(windowW / 5) - 1, 39)
+
+        self.editText = MyQLineEdit(self)
+        self.editText.setText("")
+        self.editText.setStyleSheet(styles.map_button)
+        self.editText.setGeometry(71, 67, int(windowW) - 72, 39)
+        self.editText.clicked.connect(self.inputText)
+
         self.buttonSAVE = QPushButton(self)
         self.buttonSAVE.setText("Save")
         self.buttonSAVE.setStyleSheet(styles.map_button)
         self.buttonSAVE.setGeometry(1, int(windowH - 40), int(windowW/3) - 1, 39)
+        self.buttonSAVE.clicked.connect(self.returnOK)
 
         self.buttonDIST = QPushButton(self)
         self.buttonDIST.setText("Distance")
@@ -1984,18 +2027,224 @@ class PointMap(QDialog):
         self.buttonNOT.setStyleSheet(styles.map_button)
         self.buttonNOT.setGeometry(int(2*windowW/3 + 1), int(windowH - 40), int(windowW/3) - 1, 39)
         self.buttonNOT.clicked.connect(self.returnNOT)
+        self.icon_name = ''
+        self.description = ''
         self.setCenter()
 
-    def returnNOT(self):
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
+    def returnOK(self):
         self.mainWindow.setPointToAction()
         self.close()
 
+    def returnNOT(self):
+        self.mainWindow.setPointToAction()
+        self.icon_name = ''
+        self.close()
 
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
         self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
                   int((resolution.height() / 2) - (self.frameSize().height() / 2)))
 
+    def choseImage(self):
+        dialog = FishIcons(self)
+        dialog.exec_()
+        dialog.show()
+        self.icon_name = str(dialog.button_check)
+        if self.icon_name != "":
+            _, y, x = self.icon_name.split('_')
+            req = QRect(QPoint(int(x) * 22, int(y) * 22), QPoint(int(x) * 22 + 21, int(y) * 22 + 21))
+            pix = self.pixmap_icons.copy(req)
+            icon = QIcon(pix)
+            self.buttonIMAGE.setText('')
+            self.buttonIMAGE.setIcon(icon)
+            self.buttonIMAGE.setIconSize(QSize(22, 22))
+
+    def inputText(self):
+        dialog_keyboard = Keyboard(self)
+        dialog_keyboard.exec_()
+        dialog_keyboard.show()
+        self.description = str(dialog_keyboard.result_text)
+        if self.description != "":
+            self.editText.setText(self.description)
+
+
+class Keyboard(QDialog):
+    def __init__(self, PointMap):
+        super().__init__(parent=PointMap)
+        print("8888")
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.mainWindow = PointMap
+        windowW = 900
+        windowH = 250
+        button_size = QSize(22, 22)
+        self.setGeometry(0, 0, windowW, windowH)
+        self.setStyleSheet("background-color:rgba(53,57,63);")
+
+        vert_lay = QVBoxLayout()
+        self.editText = MyQLineEdit(self)
+        self.editText.setText("")
+        self.editText.setStyleSheet(styles.map_button)
+        self.editText.setGeometry(3, 1, int(windowW), 29)
+        vert_lay.addWidget(self.editText)
+
+
+        self.grid = QGridLayout()
+        self.setButtons()
+        vert_lay.addLayout(self.grid)
+
+
+        hor_lay = QHBoxLayout()
+        self.buttonOK = QPushButton(self)
+        self.buttonOK.setText("OK")
+        self.buttonOK.setStyleSheet(styles.map_button)
+        self.buttonOK.clicked.connect(self.returnOK)
+
+        self.buttonNOT = QPushButton(self)
+        self.buttonNOT.setText("NO")
+        self.buttonNOT.setStyleSheet(styles.map_button)
+        self.buttonNOT.clicked.connect(self.returnNOT)
+        hor_lay.addWidget(self.buttonOK)
+        hor_lay.addWidget(self.buttonNOT)
+
+        vert_lay.addLayout(hor_lay)
+
+        self.setLayout(vert_lay)
+        self.setCenter()
+        self.result_text = ""
+
+    def setCenter(self):
+        resolution = QDesktopWidget().screenGeometry()
+        self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
+                  int((resolution.height() / 2) - (self.frameSize().height() / 2)) + 60)
+
+    def setButtons(self):
+        names = ['1','2','3','4','5','6','7','8','9','0', 'Backsp',
+'q','w','e','r','t','y','u','i','o','p','',
+'UP','a','s','d','f','g','h','j','k','l','',
+'.','z','x','c','v','b','n','m','-','=','PRB']
+
+        positions = [(i, j) for i in range(4) for j in range(11)]
+        for position, name in zip(positions, names):
+            if name == '':
+                continue
+            button = QPushButton(name)
+            button.setStyleSheet(styles.keyboard)
+            button.setObjectName(name)
+            button.clicked.connect(self.clickButton)
+            self.grid.addWidget(button, *position, alignment=QtCore.Qt.AlignCenter)
+
+    def clickButton(self):
+        butt = self.sender()
+        self.button_check = str(butt.objectName())
+        print(self.button_check)
+        if self.button_check not in ('Backsp','UP','PRB'):
+            self.editText.setText(self.editText.text() + self.button_check)
+        elif self.button_check == 'PRB':
+            self.editText.setText(self.editText.text() + " ")
+        elif self.button_check == 'Backsp':
+            self.editText.setText(self.editText.text()[:-1])
+        self.result_text = self.editText.text()
+
+    def returnOK(self):
+        self.close()
+
+    def returnNOT(self):
+        self.result_text = ''
+        self.close()
+
+
+class FishIcons(QDialog):
+    def __init__(self, PointMap):
+        super().__init__(parent=PointMap)
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        self.mainWindow = PointMap
+        windowW = 250
+        windowH = 200
+        self.setGeometry(0, 0, windowW, windowH)
+        self.setStyleSheet("background-color:rgba(53,57,63);")
+        #TODO - ниже нужно перенести в Point, так будет удобнее!
+
+        self.pixmap = self.mainWindow.pixmap_icons
+        icon_param = 22
+        icons_width = self.pixmap.width()
+        icons_height = self.pixmap.height()
+        self.grid = QGridLayout()
+
+        self.setButtons(icons_width, icons_height, icon_param)
+        self.setLayout(self.grid)
+
+        self.buttonSAVE = QPushButton(self)
+        self.buttonSAVE.setText("Ok")
+        self.buttonSAVE.setStyleSheet(styles.map_button)
+        self.buttonSAVE.setGeometry(1, int(windowH - 30), int(windowW/2) - 1, 29)
+        self.buttonSAVE.clicked.connect(self.returnOK)
+
+        self.buttonNOT = QPushButton(self)
+        self.buttonNOT.setText("Cancel")
+        self.buttonNOT.setStyleSheet(styles.map_button)
+        self.buttonNOT.setGeometry(int(windowW/2 + 1), int(windowH - 30), int(windowW/2) - 1, 29)
+        self.buttonNOT.clicked.connect(self.returnNOT)
+        self.setCenter()
+        self.button_check = ""
+
+    def setButtons(self, icons_width, icons_height, icon_param):
+        rangeX = int(icons_width/icon_param)
+        rangeY = int(icons_height / icon_param)
+        for j in range(rangeY):
+            for i in range(rangeX):
+                req = QRect(QPoint(i*icon_param, j*icon_param), QPoint(i*icon_param + 21, j*icon_param + 21))
+                pix = self.pixmap.copy(req)
+                icon = QIcon(pix)
+
+                button = QPushButton(self)
+                #button.setCheckable(True)
+                button.setIcon(icon)
+                button.setIconSize(QSize(icon_param, icon_param))
+                button.setStyleSheet(styles.iconFish)
+                name = 'button_' + str(j) + '_' + str(i)
+                button.setObjectName(name)
+                button.clicked.connect(self.clickButton)
+                '''
+                button = QLabel(self)
+                button.setPixmap(pix)
+                '''
+                self.grid.addWidget(button, j, i, alignment=QtCore.Qt.AlignTop)
+
+    def clickButton(self):
+        butt = self.sender()
+        self.button_check = str(butt.objectName())
+
+    def setCenter(self):
+        resolution = QDesktopWidget().screenGeometry()
+        self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
+                  int((resolution.height() / 2) - (self.frameSize().height() / 2)) + 60)
+
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
+    def returnNOT(self):
+        self.button_check = ""
+        self.close()
+
+    def returnOK(self):
+        self.close()
 
 
 class SettingsMap(QDialog):

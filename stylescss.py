@@ -1,8 +1,19 @@
 ################   POINT  DIALOG MENU   ##############
 
+keyboard = """
+    color: rgba(255, 255, 255);
+    font-size: 15px;
+"""
 
+lay = """
+    border: 1px solid rgba(50, 50, 50, 120); 
+"""
 
-
+iconFish = """
+QPushButton:pressed {
+    border: 2px solid rgba(255, 215, 0);
+}
+"""
 
 ################   MAP  DIALOG MENU   ##############
 map_dialog = """
