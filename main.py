@@ -547,9 +547,6 @@ class Circles(QWidget):
             painter.drawLine(x_point - white_height, y_point, x_point + white_height, y_point)
             painter.drawLine(x_point, y_point - white_height, x_point, y_point + white_height)
 
-
-
-
     def setPointToAction(self, point=None, visible=None):
         result = False
         if visible == False:
@@ -563,7 +560,6 @@ class Circles(QWidget):
         print("get!", self.actionPoint)
         self.update()
         return result
-
 
     def setShipPosition(self, x, y, rotation = 0):
         self.shipPosition.setX(x)
@@ -2127,7 +2123,7 @@ class Keyboard(QDialog):
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
         self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
-                  int((resolution.height() / 2) - (self.frameSize().height() / 2)) + 60)
+                  int((resolution.height() / 2) - (self.frameSize().height() / 2)) + 100)
 
     def setButtons(self):
         names = ['1','2','3','4','5','6','7','8','9','0',
