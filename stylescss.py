@@ -2,7 +2,7 @@
 
 keyboard = """
     color: rgba(255, 255, 255);
-    font-size: 15px;
+    font-size: 18px;
 """
 
 lay = """

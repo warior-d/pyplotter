@@ -2122,24 +2122,29 @@ class Keyboard(QDialog):
         self.setCenter()
         self.result_text = ""
 
+        self.upper_text = False
+
     def setCenter(self):
         resolution = QDesktopWidget().screenGeometry()
         self.move(int((resolution.width() / 2) - (self.frameSize().width() / 2)),
                   int((resolution.height() / 2) - (self.frameSize().height() / 2)) + 60)
 
     def setButtons(self):
-        names = ['1','2','3','4','5','6','7','8','9','0', 'Backsp',
-'q','w','e','r','t','y','u','i','o','p','',
-'UP','a','s','d','f','g','h','j','k','l','',
-'.','z','x','c','v','b','n','m','-','=','PRB']
+        names = ['1','2','3','4','5','6','7','8','9','0',
+'q','w','e','r','t','y','u','i','o','p',
+'UP','a','s','d','f','g','h','j','k','l',
+'.','z','x','c','v','b','n','m','-','=',
+'','','','','','PRB','Backsp','','','']
 
-        positions = [(i, j) for i in range(4) for j in range(11)]
+        positions = [(i, j) for i in range(5) for j in range(10)]
         for position, name in zip(positions, names):
             if name == '':
                 continue
             button = QPushButton(name)
             button.setStyleSheet(styles.keyboard)
             button.setObjectName(name)
+            if name == 'UP':
+                button.setCheckable(True)
             button.clicked.connect(self.clickButton)
             self.grid.addWidget(button, *position, alignment=QtCore.Qt.AlignCenter)
 
@@ -2148,11 +2153,18 @@ class Keyboard(QDialog):
         self.button_check = str(butt.objectName())
         print(self.button_check)
         if self.button_check not in ('Backsp','UP','PRB'):
+            if self.upper_text:
+                self.button_check = self.button_check.upper()
             self.editText.setText(self.editText.text() + self.button_check)
         elif self.button_check == 'PRB':
             self.editText.setText(self.editText.text() + " ")
         elif self.button_check == 'Backsp':
             self.editText.setText(self.editText.text()[:-1])
+        elif self.button_check == 'UP':
+            if self.upper_text:
+                self.upper_text = False
+            else:
+                self.upper_text = True
         self.result_text = self.editText.text()
 
     def returnOK(self):
