@@ -582,6 +582,15 @@ class Circles(QWidget):
         self.update()
 
 
+class MyQLabel(QLabel):
+    clicked = pyqtSignal()
+    def __init__(self, widget):
+        super().__init__(widget)
+    def mousePressEvent(self, QMouseEvent):
+        print("!!!!!!!!!!!!!!")
+        self.clicked.emit()
+
+
 class FishIconsClass(QWidget):
     def __init__(self):
         super().__init__()
@@ -628,7 +637,6 @@ class FishIconsClass(QWidget):
         labels_names = []
         for label_one in self.findChildren(QLabel):
             labels_names.append(label_one.objectName())
-        print("kolvo", len(labels_names))
         # (908, 525, '1_3', 'test', '2023-07-06_00-44-35')
         if list_data is not None:
             for data in list_data:
@@ -661,6 +669,10 @@ class FishIconsClass(QWidget):
                     label.move(new_point)
                     if not self.reqt_screen.contains(new_point):
                         label.setVisible(False)
+
+    def clickLabel(self):
+        print("label.objectName()")
+
 
     def setIconsOldPos(self):
         for label in self.findChildren(QLabel):
