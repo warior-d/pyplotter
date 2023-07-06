@@ -582,6 +582,101 @@ class Circles(QWidget):
         self.update()
 
 
+class FishIconsClass(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.path = self.getPath()
+        path_images = os.path.join(self.path, 'icons', 'fishIcons.png')
+        self.pixmap_icons = QPixmap(path_images)
+
+        self.screen_width = Settings.WIDTH_SCREEN
+        self.screen_height = Settings.HEIGHT_SCREEN
+        self.reqt_screen = QRect(0, 0, self.screen_width, self.screen_height)
+        self.setGeometry(0, 0, self.screen_width, self.screen_height)
+        self.iconsVisible = False
+        self.connection = self.initConnect()
+        #self.selectPoints(self.connection)
+        self.coords_list = None
+        self.labels_old_pos = {}
+
+    def getPath(self):
+        path = os.getcwd()
+        is_home = False
+        for dir in os.listdir(path='.'):
+            if dir == 'icons':
+                is_home = True
+        if not is_home:
+            path = os.path.join(os.getcwd(), 'pyplotter')
+        return path
+
+    def initConnect(self):
+        if not os.path.exists('db'):
+            os.makedirs('db')
+        #TODO - path!!!
+        path = os.path.join(os.getcwd(), 'db', 'main_db.db')
+        connection = sqlite3.connect(path)
+        return connection
+
+    def selectPoints(self, conn):
+        sqlite_select_query = "SELECT * from map_points"
+        cursor = conn.cursor()
+        cursor.execute(sqlite_select_query)
+        self.coords_list = cursor.fetchall()
+        cursor.close()
+
+    def getCoordsAndIcons(self, list_data):
+        labels_names = []
+        for label_one in self.findChildren(QLabel):
+            labels_names.append(label_one.objectName())
+        print("kolvo", len(labels_names))
+        # (908, 525, '1_3', 'test', '2023-07-06_00-44-35')
+        if list_data is not None:
+            for data in list_data:
+                point = QPoint(data[0], data[1])
+                y, x = data[2].split('_')
+                req = QRect(QPoint(int(x) * 22, int(y) * 22), QPoint(int(x) * 22 + 21, int(y) * 22 + 21))
+                pix = self.pixmap_icons.copy(req)
+                label_name = data[4]
+
+                new_point = QPoint()
+                new_point.setX(point.x() - 11)
+                new_point.setY(point.y() - 11)
+
+                label_find = self.findChild(QLabel, label_name)
+
+                if label_find:
+                    if self.reqt_screen.contains(new_point):
+                        self.labels_old_pos[label_find.objectName()] = new_point
+                        label_find.move(new_point)
+                        if not label_find.isVisible():
+                            label_find.setVisible(True)
+                    else:
+                        if label_find.isVisible():
+                            label_find.setVisible(False)
+                else:
+                    label = QLabel(self)
+                    label.setObjectName(label_name)
+                    self.labels_old_pos[label_name] = new_point
+                    label.setPixmap(pix)
+                    label.move(new_point)
+                    if not self.reqt_screen.contains(new_point):
+                        label.setVisible(False)
+
+    def setIconsOldPos(self):
+        for label in self.findChildren(QLabel):
+            if label.objectName() in self.labels_old_pos:
+                self.labels_old_pos[label.objectName()] = label.pos()
+
+    def moveIcons(self, delta):
+        for label in self.findChildren(QLabel):
+            if label.objectName() in self.labels_old_pos:
+                label_new_pos = self.labels_old_pos[label.objectName()] + delta
+                label.move(label_new_pos)
+                if not self.reqt_screen.contains(label_new_pos):
+                    label.setVisible(False)
+                else:
+                    label.setVisible(True)
+
 
 class Main(QWidget):
     mouse_old_pos = None
@@ -1183,6 +1278,7 @@ class MainWindow(QMainWindow):
         self.gridW = GridWidget()
         self.circles = Circles()
         self.whiteBack = WhiteBack()
+        self.iconsWidget = FishIconsClass()
         self.currentPointToSave = QPointF()
         #####
         self.figure = plt.figure(clear=True)
@@ -1201,6 +1297,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.myWidget)
         layout.addWidget(self.canvas)
         layout.addWidget(self.gridW)
+        layout.addWidget(self.iconsWidget)
         layout.addWidget(self.shipWidget)
         layout.addWidget(self.circles)
 
@@ -1385,6 +1482,35 @@ class MainWindow(QMainWindow):
         coursor_pix = QPixmap(path_coursor)
         coursor = QCursor(coursor_pix)
         self.setCursor(coursor)
+        self.coords_list = None
+        self.selectPoints(self.connection)
+        self.fishInfo = self.getFishIconsInfo()
+        self.sendFishIcons(self.fishInfo)
+
+
+    def selectPoints(self, conn):
+        sqlite_select_query = "SELECT * from map_points"
+        cursor = conn.cursor()
+        cursor.execute(sqlite_select_query)
+        self.coords_list = cursor.fetchall()
+        cursor.close()
+
+    def getFishIconsInfo(self):
+        itog = []
+        if self.coords_list is not None:
+            for row in self.coords_list:
+                ###   ('2023-07-06_00-44-35', 55.682383903131445, 37.878969192341394, 'button_3_1', 'home')  ###
+                new_row = []
+                point_coord = self.myWidget.getPointByCoords(row[1], row[2])
+                _, y, x = row[3].split('_')
+                icon = str(y + '_' + x)
+                new_row = [point_coord[0], point_coord[1], icon, row[4], row[0]]
+                itog.append(tuple(new_row))
+        return itog
+
+    def sendFishIcons(self, data):
+        self.iconsWidget.getCoordsAndIcons(data)
+
 
     def getPath(self):
         path = os.getcwd()
@@ -1428,7 +1554,7 @@ class MainWindow(QMainWindow):
         dialog.exec_()
         dialog.show()
         if dialog.icon_name != '':
-            print("USPEKH", dialog.icon_name, dialog.full_coords)
+            #print("USPEKH", dialog.icon_name, dialog.full_coords)
             date = datetime.now()
             filename = date.strftime('%Y-%m-%d_%H-%M-%S')
             data = {"name": "", "latitude": "", "longitude": "", "icon": ""}
@@ -1440,6 +1566,10 @@ class MainWindow(QMainWindow):
             data["description"] = dialog.description
             print(data)
             self.insert2MP(self.connection, data)
+            self.selectPoints(self.connection)
+            data = self.getFishIconsInfo()
+            print("dateika", data)
+            self.sendFishIcons(data)
 
     def insert2MP(self, conn, data):
         cur = conn.cursor()
@@ -1698,6 +1828,7 @@ class MainWindow(QMainWindow):
             self.myWidget.setLabelPillowOldPos(self.myWidget.getCurrentLabelPillowPos())
             #self.myWidget.setScreenOldPos(self.myWidget.getCurrentScreenCenter())
             self.shipWidget.setShipOldPos()
+            self.iconsWidget.setIconsOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
 
             current_pos = self.myWidget.getCurrentLabelMapPos()
@@ -1744,7 +1875,7 @@ class MainWindow(QMainWindow):
         #self.plot()
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
-
+        self.iconsWidget.moveIcons(delta)
         self.timer.stop()
 
     def mouseDoubleClickEvent(self, event):
@@ -1801,6 +1932,8 @@ class MainWindow(QMainWindow):
         self.myWidget.updateScale(Settings.CURRENT_MASHTAB)
         self.showStatusBarMessage()
         self.plot()
+        data = self.getFishIconsInfo()
+        self.sendFishIcons(data)
         self.updateInfoLabels()
         #self.statusBar.showMessage(strStatus)
 
