@@ -584,10 +584,9 @@ class Circles(QWidget):
 
 class MyQLabel(QLabel):
     clicked = pyqtSignal()
-    def __init__(self, widget):
-        super().__init__(widget)
-    def mousePressEvent(self, QMouseEvent):
-        print("!!!!!!!!!!!!!!")
+
+    def mousePressEvent(self, e):
+        print("ZALUPA!")
         self.clicked.emit()
 
 
@@ -663,7 +662,8 @@ class FishIconsClass(QWidget):
                         if label_find.isVisible():
                             label_find.setVisible(False)
                 else:
-                    label = QLabel(self)
+                    label = MyQLabel(self)
+                    label.clicked.connect(self.clickLabel)
                     label.setObjectName(label_name)
                     self.labels_old_pos[label_name] = new_point
                     label.setPixmap(pix)
