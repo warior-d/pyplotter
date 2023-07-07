@@ -621,7 +621,7 @@ class FishIconsClass(QWidget):
         if not os.path.exists('db'):
             os.makedirs('db')
         #TODO - path!!!
-        path = os.path.join(os.getcwd(), 'db', 'main_db.db')
+        path = os.path.join(self.path, 'db', 'main_db.db')
         connection = sqlite3.connect(path)
         return connection
 
@@ -1605,7 +1605,7 @@ class MainWindow(QMainWindow):
         if not os.path.exists('db'):
             os.makedirs('db')
 
-        path = os.path.join(os.getcwd(), 'db', 'main_db.db')
+        path = os.path.join(self.path, 'db', 'main_db.db')
         connection = sqlite3.connect(path)
         return connection
 
