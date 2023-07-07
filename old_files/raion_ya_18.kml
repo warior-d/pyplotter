@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<kml><GroundOverlay><name>raion_ya_18.jpg</name><color>88ffffff</color><Icon>
-<href>raion_ya_18.jpg</href>
-<viewBoundScale>0.75</viewBoundScale></Icon><LatLonBox>
-<north>55.7000023247384</north>
-<south>55.681354568058</south>
-<east>37.8808271884918</east>
-<west>37.8465914726257</west>
-</LatLonBox></GroundOverlay></kml>
