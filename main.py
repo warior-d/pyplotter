@@ -581,6 +581,10 @@ class Circles(QWidget):
         self.setVisible(visible)
         self.update()
 
+    def clearLabelCircles(self):
+        if self.isVisible():
+            self.setVisible(False)
+
 
 class MyQLabel(QLabel):
     clicked = pyqtSignal()
@@ -1498,6 +1502,10 @@ class MainWindow(QMainWindow):
         self.fishInfo = self.getFishIconsInfo()
         self.sendFishIcons(self.fishInfo)
 
+        self.LatDEC = None
+        self.LonDEC = None
+        self.course = 0
+
 
     def selectPoints(self, conn):
         sqlite_select_query = "SELECT * from map_points"
@@ -1943,6 +1951,11 @@ class MainWindow(QMainWindow):
         self.showStatusBarMessage()
         self.plot()
         data = self.getFishIconsInfo()
+        if self.serial.isOpen() == True:
+            ship_coords = self.myWidget.getPointByCoordsCorner(self.LatDEC, self.LonDEC)
+            new_x, new_y = ship_coords
+            self.shipWidget.moveLabelShip(new_x, new_y, int(self.course))
+            self.circles.setShipPosition(new_x, new_y, int(self.course))
         self.sendFishIcons(data)
         self.updateInfoLabels()
         #self.statusBar.showMessage(strStatus)
@@ -1976,7 +1989,6 @@ class MainWindow(QMainWindow):
         dialog.show()
 
     def waitingSerial(self):
-        print("1. waitingSerial")
         self.lineEditDebug.setText("")
         try:
             if Settings.COM_PORT_EKHO is not None and (self.serial.isOpen() == False):
@@ -1985,7 +1997,6 @@ class MainWindow(QMainWindow):
                 conn = self.serial.open(QIODevice.ReadOnly)
                 print("2. waitingSerial conn ", conn)
                 if conn == True:
-                    print("3.1 waitingSerial conn True")
                     rdy = self.serial.readyRead.connect(self.onRead)
                     print("3.2 waitingSerial conn True", rdy)
                 else:
@@ -1995,6 +2006,7 @@ class MainWindow(QMainWindow):
                 self.serial.close()
                 print("serial -> close!")
                 self.shipWidget.clearLabelShip()
+                self.circles.clearLabelCircles()
 
         except Exception as e:
             print(e, ' waitingSerial')
@@ -2052,27 +2064,27 @@ class MainWindow(QMainWindow):
                     timeNorm = datetime.strptime(time, '%H%M%S') + timedelta(hours=3)
                     #self.LCDtime.display(timeNorm.strftime('%H:%M'))
                     self.currentDate = data[9]
-                    course = int(data[8])
+                    self.course = int(data[8])
                     Lat = data[3]
                     LatSign = data[4]
                     Lon = data[5]
                     LonSign = data[6]
                     strSpeed = data[7]
                     self.ship_speed = float(data[7]) * 1.85
-                    LatDEC = self.NMEA2decimal(Lat, LatSign)
-                    LonDEC = self.NMEA2decimal(Lon, LonSign)
+                    self.LatDEC = self.NMEA2decimal(Lat, LatSign)
+                    self.LonDEC = self.NMEA2decimal(Lon, LonSign)
                     #print(LatDEC, LonDEC)
-                    if course in range(0, 360):
+                    if self.course in range(0, 360):
                         pass
                         #self.LCDcourse.display(int(course))
                     #self.LCDspeed.display(speed)
-                    ship_coords = self.myWidget.getPointByCoordsCorner(LatDEC, LonDEC)
+                    ship_coords = self.myWidget.getPointByCoordsCorner(self.LatDEC, self.LonDEC)
                     new_x, new_y = ship_coords
-                    self.shipWidget.moveLabelShip(new_x, new_y, int(course))
-                    self.circles.setShipPosition(new_x, new_y, int(course))
+                    self.shipWidget.moveLabelShip(new_x, new_y, int(self.course))
+                    self.circles.setShipPosition(new_x, new_y, int(self.course))
                     self.updateInfoLabels()
 
-                    self.loggingData(LatDEC, LonDEC, self.currentDepth)
+                    self.loggingData(self.LatDEC, self.LonDEC, self.currentDepth)
                     #self.shipWidget.newGPScoordinates(LatDEC, LonDEC, int(course))
                 else:
                     now = QTime.currentTime()
