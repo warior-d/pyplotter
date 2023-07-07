@@ -675,7 +675,6 @@ class FishIconsClass(QWidget):
     def clickLabel(self):
         print("label.objectName()")
 
-
     def setIconsOldPos(self):
         for label in self.findChildren(QLabel):
             if label.objectName() in self.labels_old_pos:
