@@ -1761,7 +1761,6 @@ class MainWindow(QMainWindow):
 
             #z = np.take(func(38.047033039027504, 55.59210725456789), 0)
             #print("ZZZZZZZZZZ", func)
-
             '''
             self.Z = self.contour_data.pivot_table(index='x', columns='y', values='z').T.values
             self.X_unique = np.sort(self.contour_data.x.unique())
