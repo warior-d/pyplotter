@@ -1319,7 +1319,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
 
         self.baseLCDy = 60
-
         shadow = QtWidgets.QGraphicsDropShadowEffect(self,
             blurRadius=14.0,
             color = QColor("white"),
