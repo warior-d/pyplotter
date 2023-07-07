@@ -1302,7 +1302,6 @@ class MainWindow(QMainWindow):
         if Settings.FILE_DEPTH_NAME is not None and self.coordsNW is not None:
             self.plot()
         #####
-
         layout = QStackedLayout()
         layout.setStackingMode(QStackedLayout.StackAll)
 
