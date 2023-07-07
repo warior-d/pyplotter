@@ -653,12 +653,13 @@ class FishIconsClass(QWidget):
                 label_find = self.findChild(QLabel, label_name)
 
                 if label_find:
+                    self.labels_old_pos[label_find.objectName()] = new_point
                     if self.reqt_screen.contains(new_point):
-                        self.labels_old_pos[label_find.objectName()] = new_point
                         label_find.move(new_point)
                         if not label_find.isVisible():
                             label_find.setVisible(True)
                     else:
+                        label_find.move(new_point)
                         if label_find.isVisible():
                             label_find.setVisible(False)
                 else:
@@ -669,6 +670,7 @@ class FishIconsClass(QWidget):
                     label.move(new_point)
                     if not self.reqt_screen.contains(new_point):
                         label.setVisible(False)
+        self.update()
 
     def clickLabel(self):
         print("label.objectName()")
