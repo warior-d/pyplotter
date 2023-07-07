@@ -488,6 +488,11 @@ class Circles(QWidget):
         self.course = 0
         self.actionPoint = QPointF()
         self.circleVisible = False
+        self.circles_old_pos = QPointF()
+
+    def setCirclesOldPos(self):
+        self.circles_old_pos.setX(self.shipPosition.x())
+        self.circles_old_pos.setY(self.shipPosition.y())
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -585,6 +590,10 @@ class Circles(QWidget):
         if self.isVisible():
             self.setVisible(False)
 
+    def mooving(self, delta):
+        if self.isVisible():
+            new_pos_label_ship = self.circles_old_pos + delta
+            self.shipPosition = new_pos_label_ship
 
 class MyQLabel(QLabel):
     clicked = pyqtSignal()
@@ -1847,6 +1856,7 @@ class MainWindow(QMainWindow):
             #self.myWidget.setScreenOldPos(self.myWidget.getCurrentScreenCenter())
             self.shipWidget.setShipOldPos()
             self.iconsWidget.setIconsOldPos()
+            self.circles.setCirclesOldPos()
             self.ship_old_pos = self.myWidget.getCurrentLabelShipPos()
 
             current_pos = self.myWidget.getCurrentLabelMapPos()
@@ -1894,6 +1904,7 @@ class MainWindow(QMainWindow):
         self.myWidget.mooving(delta)
         self.shipWidget.mooving(delta)
         self.iconsWidget.moveIcons(delta)
+        self.circles.mooving(delta)
         self.timer.stop()
 
     def mouseDoubleClickEvent(self, event):
